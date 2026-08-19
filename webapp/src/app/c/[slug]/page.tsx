@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
+import StartJob from "@/components/StartJob";
 
 const STATUS_STYLE: Record<string, string> = {
   done: "bg-ok-soft text-ok",
@@ -21,6 +22,17 @@ export default async function ClientPage({ params }: { params: Promise<{ slug: s
   const { data: client } = await supabase
     .from("clients").select("*").eq("slug", slug).single();
   if (!client) notFound();
+
+  const { data: me } = await supabase.auth.getUser();
+  const { data: membership } = await supabase
+    .from("org_members").select("role").eq("user_id", me.user?.id ?? "").limit(1);
+  const staff = (membership?.[0]?.role ?? "client_viewer") !== "client_viewer";
+
+  const { data: methodRow } = await supabase
+    .from("method_versions").select("manifest").order("created_at", { ascending: false }).limit(1);
+  const workflows = (methodRow?.[0]?.manifest?.workflows ?? []) as {
+    id: string; name: string; description: string; needs: string;
+    phases: number; gates: number; builds_on: string[] }[];
 
   const { data: runs } = await supabase
     .from("job_runs")
@@ -43,7 +55,16 @@ export default async function ClientPage({ params }: { params: Promise<{ slug: s
         </form>
       </header>
 
+      {staff && (
+        <StartJob clientId={client.id} hasWebsite={!!client.website}
+          workflows={workflows}
+          activeIds={(runs ?? [])
+            .filter((r) => r.status === "active")
+            .map((r) => (r.jobs as unknown as { workflow_id: string })?.workflow_id ?? "")} />
+      )}
+
       <section className="flex flex-col gap-4">
+        <div className="t-eyebrow">work</div>
         {(runs ?? []).map((r) => {
           const phases = [...(r.phases ?? [])].sort((a, b) => a.seq - b.seq);
           const wf = (r.jobs as unknown as { workflow_id: string })?.workflow_id ?? "";

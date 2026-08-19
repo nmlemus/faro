@@ -38,8 +38,19 @@ def main():
     sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT,
                          capture_output=True, text=True).stdout.strip()
     wfs = core.workflows()
-    manifest = {"workflows": sorted(wfs), "agents": sorted(core.agents()),
-                "skills": len(core.skill_catalog())}
+    manifest = {
+        "skills": len(core.skill_catalog()),
+        "agents": [{"id": a["id"], "name": a["name"], "role": a["role"]}
+                   for a in core.agents().values()],
+        "workflows": [{
+            "id": w["id"], "name": w["name"], "description": w["description"],
+            "deliverable": w["deliverable"], "builds_on": w.get("builds_on", []),
+            "phases": len(w["phases"]),
+            "gates": sum(1 for ph in w["phases"] if ph.get("gate")),
+            "needs": ("the URL alone" if w["id"] == "website-audit" else
+                      "data files" if w["id"] == "growth-audit" else "brand context"),
+        } for w in wfs.values()],
+    }
     mv = db.insert("method_versions", [{"git_sha": sha, "manifest": manifest}],
                    upsert_on="git_sha")[0]
 

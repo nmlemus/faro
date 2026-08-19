@@ -172,6 +172,45 @@ def run_claude_streaming(phase, persona, prompt, cwd):
 
 # ── the work loop ───────────────────────────────────────────────────────────
 
+def expand_runs():
+    """Materialize phases for UI-requested runs. The UI writes intent; only the
+    engine — which has the git method checkout — knows what phases exist."""
+    # PostgREST can't filter on "no child rows" directly; fetch and check
+    runs = db.select("job_runs", "status=eq.active&select=id,org_id,client_id,job_id,"
+                                 "jobs(workflow_id),clients(slug)")
+    wfs = core.workflows()
+    for r in runs:
+        existing = db.select("phases", f"run_id=eq.{r['id']}&select=id&limit=1")
+        if existing:
+            continue
+        wf = wfs.get(r["jobs"]["workflow_id"])
+        slug = r["clients"]["slug"]
+        if wf is None:
+            continue
+        # data preflight (transitional: data files still live on disk)
+        if r["jobs"]["workflow_id"] == "growth-audit":
+            data = ROOT / "clients" / slug / "data"
+            if not data.is_dir() or not any(f.suffix.lower() in (".csv", ".tsv", ".json", ".xlsx")
+                                            for f in data.glob("*")):
+                db.insert("activity_events", [{
+                    "org_id": r["org_id"], "client_id": r["client_id"], "run_id": r["id"],
+                    "type": "error",
+                    "payload": {"line": f"'{slug}' has no data files; growth-audit needs them. "
+                                        "Add the client's exports, or run the website audit."}}])
+                db.update("job_runs", f"id=eq.{r['id']}", {"status": "abandoned"})
+                print(f"[expand] {slug}/growth-audit abandoned: no data")
+                continue
+        for i, ph in enumerate(wf["phases"]):
+            db.insert("phases", [{
+                "run_id": r["id"], "org_id": r["org_id"], "client_id": r["client_id"],
+                "seq": i, "phase_id": ph["id"], "agent": ph["agent"], "produces": ph["produces"],
+                "gate_class": ph.get("gate_class") if ph.get("gate") else None,
+                "gate_text": (ph.get("gate") or "").strip() or None,
+                "status": "pending" if i == 0 else "blocked",
+            }], upsert_on="run_id,phase_id")
+        print(f"[expand] {slug}/{r['jobs']['workflow_id']} -> {len(wf['phases'])} phases")
+
+
 def run_one():
     claimed = db.rpc("claim_phase", {"p_worker": WORKER})
     if not claimed:
@@ -252,8 +291,11 @@ if __name__ == "__main__":
         enqueue(sys.argv[2], sys.argv[3])
     elif "--once" in sys.argv:
         run_one() or print("nothing to claim")
+    elif "--expand" in sys.argv:
+        expand_runs()
     else:
         print(f"worker {WORKER} polling…")
         while True:
+            expand_runs()
             if not run_one():
                 time.sleep(3)
