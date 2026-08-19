@@ -668,18 +668,20 @@ def run_claude(persona, prompt, cwd):
 
 def preflight(client, wid, cdir):
     """A run costs minutes and tokens. If the client lacks what the first phase needs, the
-    deliverable comes out hollow — better to fail here."""
+    deliverable comes out hollow. Returns the blocking message, or None — the CLI dies on
+    it and the web console shows it BEFORE the run button does anything."""
     cfg = yaml.safe_load(read_if(cdir / "client.yaml")) or {}
     if wid == "website-audit" and not (cfg.get("website") or "").strip():
-        die(f"'{client}' has no website, and website-audit comes entirely from it.\n"
-            f"  Add it with:  agency edit {client}")
+        return (f"'{client}' has no website, and the website audit comes entirely from it. "
+                "Add the site to the client file first.")
     if wid == "growth-audit":
         data = [f for f in (cdir / "data").glob("*")
                 if f.is_file() and f.suffix.lower() in (".csv", ".tsv", ".json", ".xlsx")]
         if not data:
-            die(f"'{client}' has no data in {cdir / 'data'}/ and growth-audit needs it.\n"
-                "  Without data the deliverable is well-written opinion, not an audit.\n"
-                f"  With only the site, run:  agency run {client} website-audit")
+            return (f"'{client}' has no data files (csv/tsv/json/xlsx) in data/. Without data "
+                    "this deliverable is well-written opinion, not an audit. Add the client's "
+                    "exports to the data folder — or run the website audit, which needs only the site.")
+    return None
 
 
 def gate_banner(client, wid, phase, jd):
@@ -700,7 +702,9 @@ def cmd_run(args):
     if wid not in wfs:
         die(f"no such workflow '{wid}'. Run: agency workflows")
     wf = wfs[wid]
-    preflight(client, wid, cdir)
+    blocked = preflight(client, wid, cdir)
+    if blocked:
+        die(blocked)
 
     jd = job_dir(client, wid)
     jd.mkdir(parents=True, exist_ok=True)
@@ -966,8 +970,14 @@ def cmd_serve(args):
                         "running": is_running(d.name, wid),
                         "files": job_files(jd),
                     }
+                blocked = {}
+                for wid2 in wfs:
+                    msg = preflight(d.name, wid2, d)
+                    if msg:
+                        blocked[wid2] = msg
                 payload["clients"].append({
                     "id": d.name, "name": cfg.get("name", d.name),
+                    "blocked": blocked,
                     "website": cfg.get("website", ""),
                     "language": cfg.get("language", "English"),
                     "business": cfg.get("business", ""), "icp": cfg.get("icp", ""),
@@ -1099,6 +1109,9 @@ def cmd_serve(args):
                     return self._bad("no such workflow", 404)
                 if is_running(client, wid):
                     return self._bad("this job is already running", 409)
+                blocked = preflight(client, wid, ROOT / "clients" / client)
+                if blocked:
+                    return self._bad(blocked, 409)
                 jd = job_dir(client, wid)
                 jd.mkdir(parents=True, exist_ok=True)
                 log = open(jd / "run.log", "w", encoding="utf8")

@@ -160,6 +160,13 @@ button { font: inherit; cursor: pointer; }
 
 .gatebox { background: var(--gate-c); color: var(--on-gate-c); border-radius: 14px; padding: 1rem 1.2rem; display: flex; flex-direction: column; gap: .7rem; }
 .gatebox .lbl { font-family: "IBM Plex Mono", monospace; font-size: .7rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+.blockbox {
+  background: var(--s-mid); border-left: 3px solid var(--ink-faint);
+  border-radius: 0 10px 10px 0; padding: .85rem 1.1rem;
+  display: flex; flex-direction: column; gap: .3rem;
+}
+.blockbox .lbl { font-family: "IBM Plex Mono", monospace; font-size: .68rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint); }
+.blockbox p { margin: 0; font-size: .9rem; color: var(--ink-soft); }
 .gatebox p { margin: 0; font-size: .92rem; }
 .gatebox .acts { display: flex; flex-wrap: wrap; gap: .6rem; }
 .gatebox textarea {
@@ -195,6 +202,13 @@ button { font: inherit; cursor: pointer; }
 .md th, .md td { border: 1px solid var(--line); padding: .45rem .65rem; text-align: left; vertical-align: top; }
 .md th { background: var(--s-mid); font-family: "IBM Plex Mono", monospace; font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; }
 .md hr { border: none; border-top: 1px solid var(--line); margin: 1.2rem 0; }
+.md .docmeta {
+  display: flex; flex-direction: column; gap: .3rem; margin: .6rem 0 1.2rem;
+  padding: .7rem 1rem; background: var(--s-mid);
+  border-left: 3px solid var(--line); border-radius: 0 10px 10px 0;
+}
+.md .docmeta .mi { font-size: .86rem; }
+.md .docmeta .mi strong { color: var(--ink-faint); font-weight: 600; margin-right: .2rem; }
 .md a { color: var(--primary); }
 
 /* start cards & empty states */
@@ -320,6 +334,13 @@ function renderMd(src) {
   const stack = [];                    // open list tags, innermost last
   const closeTo = (d) => { while (stack.length > d) out.push(`</${stack.pop()}>`); };
   const isSep = (r) => /^[|\s:-]+$/.test(r) && r.includes("-");
+  // "Label: value" at the start of a paragraph gets its label bolded — these
+  // deliverables are full of field lines (Cliente:, Método:, URL:, H1 verbatim:)
+  // and scanning them is the whole point.
+  const labelize = (html) => html.replace(/^([A-Za-z\u00C0-\u017F][^<>:]{0,45}):(\s|$)/, "<strong>$1:</strong>$2");
+  // A line that starts a "Label:" field — short capitalised label, then a colon.
+  const labelRe = /^(\*\*)?[A-Z\u00C0-\u00DC][^:\n]{0,45}:(\s|\*|$)/;
+  let pendingMeta = false;             // true right after an H1: next paragraph may be the doc meta line
 
   while (i < lines.length) {
     const L = lines[i];
@@ -327,7 +348,7 @@ function renderMd(src) {
     if (/^\s*```/.test(L)) {                                   // fenced code
       closeTo(0); const buf = []; i++;
       while (i < lines.length && !/^\s*```/.test(lines[i])) buf.push(lines[i++]);
-      i++; out.push(`<pre><code>${esc(buf.join("\n"))}</code></pre>`); continue;
+      i++; out.push(`<pre><code>${esc(buf.join("\n"))}</code></pre>`); pendingMeta = false; continue;
     }
 
     if (/^\s*\|/.test(L)) {                                   // table
@@ -341,20 +362,23 @@ function renderMd(src) {
         const tag = hasHeader && ri === 0 ? "th" : "td";
         html += "<tr>" + cells(r).map((c) => `<${tag}>${c}</${tag}>`).join("") + "</tr>";
       });
-      out.push(html + "</table></div>"); continue;
+      out.push(html + "</table></div>"); pendingMeta = false; continue;
     }
 
     const h = /^(#{1,4})\s+(.*)/.exec(L);
-    if (h) { closeTo(0); out.push(`<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`); i++; continue; }
+    if (h) {
+      closeTo(0); out.push(`<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`);
+      pendingMeta = h[1].length === 1; i++; continue;
+    }
 
-    if (/^\s*---+\s*$/.test(L)) { closeTo(0); out.push("<hr>"); i++; continue; }
+    if (/^\s*---+\s*$/.test(L)) { closeTo(0); out.push("<hr>"); pendingMeta = false; i++; continue; }
 
     if (/^\s*>\s?/.test(L)) {                                 // blockquote, wrapped lines joined
       closeTo(0); const buf = [];
       while (i < lines.length && /^\s*>\s?/.test(lines[i])) buf.push(lines[i++].replace(/^\s*>\s?/, ""));
       const paras = buf.join("\n").split(/\n\s*\n/)
         .map((q) => inline(q.replace(/\s*\n\s*/g, " ").trim())).filter(Boolean);
-      out.push(`<blockquote>${paras.map((q) => `<p>${q}</p>`).join("")}</blockquote>`); continue;
+      out.push(`<blockquote>${paras.map((q) => `<p>${q}</p>`).join("")}</blockquote>`); pendingMeta = false; continue;
     }
 
     const li = /^(\s*)([-*]|\d+\.)\s+(.*)/.exec(L);
@@ -372,22 +396,39 @@ function renderMd(src) {
         if (/^\s*(#{1,4}\s|```|\||>)/.test(N) || /^\s*---+\s*$/.test(N)) break;
         text += " " + N.trim(); i++;
       }
-      out.push(`<li>${inline(text)}</li>`); continue;
+      out.push(`<li>${labelize(inline(text))}</li>`); pendingMeta = false; continue;
     }
 
     if (/^\s*$/.test(L)) { closeTo(0); i++; continue; }
 
-    // paragraph: consecutive plain lines join into ONE flowing <p> — artifacts
-    // arrive hard-wrapped at ~80 cols and must read as prose, not as shards
     closeTo(0);
+    // Right under the title, a run of "Label: value" lines — plain or ·-joined —
+    // is the document's meta block: one field per line, never merged into prose.
+    const isMetaLine = (s) => labelRe.test(s) || (/·/.test(s) && /:/.test(s));
+    if (pendingMeta && isMetaLine(L.trim())) {
+      const fields = [];
+      while (i < lines.length) {
+        const N = lines[i].trim();
+        if (!N || !isMetaLine(N)) break;
+        N.split(/\s*·\s*/).forEach((f) => { if (f) fields.push(f); });
+        i++;
+      }
+      out.push(`<div class="docmeta">${fields.map((f) => `<span class="mi">${labelize(inline(f))}</span>`).join("")}</div>`);
+      pendingMeta = false; continue;
+    }
+    pendingMeta = false;
+
+    // paragraph: consecutive plain lines join into ONE flowing <p>; a fresh
+    // "Label:" line starts its own paragraph instead of being swallowed
     const buf = [L.trim()]; i++;
     while (i < lines.length) {
       const N = lines[i];
       if (/^\s*$/.test(N)) break;
       if (/^\s*(#{1,4}\s|```|\||>|[-*]\s|\d+\.\s)/.test(N) || /^\s*---+\s*$/.test(N)) break;
+      if (labelRe.test(N.trim())) break;
       buf.push(N.trim()); i++;
     }
-    out.push(`<p>${inline(buf.join(" "))}</p>`);
+    out.push(`<p>${labelize(inline(buf.join(" ")))}</p>`);
   }
   closeTo(0);
   return out.join("\n");
@@ -499,9 +540,11 @@ function renderJob(c, wf) {
   head.appendChild(el("h3", null, wf.name));
   head.appendChild(el("span", "chip " + s.cls, s.label));
   head.appendChild(el("div", "grow"));
+  const blockedMsg = (c.blocked || {})[wf.id];
   const canRun = !job || (!job.running && s.cls !== "gate" && s.cls !== "done");
   if (canRun) {
     const b = el("button", "btn", job ? "Continue" : "Run");
+    if (blockedMsg) { b.disabled = true; b.title = blockedMsg; }
     b.addEventListener("click", async () => {
       b.disabled = true;
       try { await api("/api/run", { client: c.id, workflow: wf.id }); toast("Running — phases take a few minutes each."); }
@@ -513,6 +556,13 @@ function renderJob(c, wf) {
   panel.appendChild(head);
 
   const body = el("div", "panel-body");
+
+  if (blockedMsg && canRun) {
+    const nb = el("div", "blockbox");
+    nb.appendChild(el("div", "lbl", "cannot run yet — something is missing"));
+    nb.appendChild(el("p", null, blockedMsg));
+    body.appendChild(nb);
+  }
 
   if (s.cls === "gate" && s.gatePhase) {
     const g = el("div", "gatebox");
