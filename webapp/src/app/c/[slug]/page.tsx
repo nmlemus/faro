@@ -40,7 +40,7 @@ export default async function ClientPage({ params }: { params: Promise<{ slug: s
     <Shell working={anyRunning}>
       <main className="max-w-6xl mx-auto px-6 py-12 flex flex-col gap-12">
         <header className="rise" style={d(0)}>
-          <Link href="/" className="t-eyebrow hover:text-ink transition-colors">← all accounts</Link>
+          {staff && <Link href="/" className="t-eyebrow hover:text-ink transition-colors">← all accounts</Link>}
           <div className="flex items-end justify-between gap-6 flex-wrap mt-2">
             <h1 className="t-display">{client.name}<span className="text-cobalt">.</span></h1>
             <p className="t-mono text-ink-3 pb-2">

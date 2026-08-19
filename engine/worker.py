@@ -139,6 +139,7 @@ def emit(phase, etype, payload):
 
 
 def tool_line(block):
+    """The raw technical line — kept in the payload for operators, never shown raw."""
     name = block.get("name", "?")
     inp = block.get("input") or {}
     for k in ("file_path", "command", "url", "query", "pattern", "name", "description"):
@@ -147,6 +148,42 @@ def tool_line(block):
             v = " ".join(v.split())
             return f"{name}: {v[:120]}"
     return name
+
+
+def human_line(block):
+    """What a business user (or a client) should read: the intent, never the
+    plumbing. File paths and bash commands stay in payload.raw for debugging."""
+    name = block.get("name", "?")
+    inp = block.get("input") or {}
+    fp = str(inp.get("file_path") or "")
+    if name == "Read":
+        if "SKILL.md" in fp:
+            return f"Consulting the {Path(fp).parent.name} playbook"
+        if fp:
+            base = Path(fp).name
+            if base.startswith("brand"):
+                return "Reading the brand guidelines"
+            return f"Reading {base}"
+        return "Reading source material"
+    if name in ("Write", "Edit", "MultiEdit"):
+        return "Writing the deliverable"
+    if name == "WebFetch":
+        from urllib.parse import urlparse
+        host = urlparse(str(inp.get("url") or "")).netloc
+        return f"Reading {host}" if host else "Reading a web page"
+    if name == "WebSearch":
+        q = " ".join(str(inp.get("query") or "").split())
+        return f"Searching the web: {q[:70]}" if q else "Searching the web"
+    if name == "Bash":
+        d = " ".join(str(inp.get("description") or "").split())
+        return d[:90] if d else "Running analysis"
+    if name in ("Grep", "Glob"):
+        return "Searching the source material"
+    if name in ("TodoWrite", "todo_write"):
+        return "Planning the next steps"
+    if name == "Skill":
+        return f"Applying the {inp.get('name', '')} method"
+    return "Working"
 
 
 def run_claude_streaming(phase, persona, prompt, cwd):
@@ -173,7 +210,7 @@ def run_claude_streaming(phase, persona, prompt, cwd):
         elif t == "assistant":
             for b in (ev.get("message") or {}).get("content", []):
                 if b.get("type") == "tool_use":
-                    emit(phase, "tool", {"line": tool_line(b)})
+                    emit(phase, "tool", {"line": human_line(b), "raw": tool_line(b)})
                 elif b.get("type") == "text" and (b.get("text") or "").strip():
                     txt = " ".join(b["text"].split())
                     emit(phase, "text", {"line": txt[:200]})

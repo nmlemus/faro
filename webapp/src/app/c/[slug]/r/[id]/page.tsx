@@ -21,6 +21,10 @@ export default async function RunPage(
   const { data: events } = await supabase
     .from("activity_events").select("id,type,payload,created_at")
     .eq("run_id", id).order("id", { ascending: false }).limit(80);
+  const { data: decisions } = await supabase
+    .from("gate_decisions").select("phase_id,decision,decided_name,feedback,created_at")
+    .in("phase_id", (phases ?? []).map((p) => p.id))
+    .order("created_at");
 
   const running = (phases ?? []).some((p) => p.status === "running");
   return (
@@ -33,6 +37,7 @@ export default async function RunPage(
       phases={phases ?? []}
       artifacts={artifacts ?? []}
       initialEvents={(events ?? []).reverse()}
+      decisions={decisions ?? []}
     />
     </Shell>
   );

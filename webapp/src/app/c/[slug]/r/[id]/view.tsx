@@ -9,9 +9,37 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 type Phase = {
   id: string; phase_id: string; seq: number; agent: string; produces: string;
   status: string; gate_class: string | null; gate_text: string | null; error: string | null;
+  started_at: string | null; finished_at: string | null;
 };
 type Artifact = { id: string; path: string; content: string | null; phase_id: string | null };
 type Ev = { id: number; type: string; payload: Record<string, unknown>; created_at: string };
+type Decision = { phase_id: string; decision: string; decided_name: string | null;
+                  feedback: string | null; created_at: string };
+
+const fmtTime = (iso: string | null) => iso
+  ? new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short",
+      hour: "2-digit", minute: "2-digit" })
+  : "";
+
+// Fallback for events emitted before humanization: never show raw paths/commands.
+function humanizeLegacy(line: string): string {
+  const m = /^(Read|Write|Edit|Bash|bash|WebFetch|Grep|Glob|Skill|todo_write|TodoWrite):\s*(.*)$/.exec(line);
+  if (!m) return line;
+  const [, tool, rest] = m;
+  if (tool === "Read") {
+    if (rest.includes("SKILL.md")) {
+      const parts = rest.split("/");
+      return `Consulting the ${parts[parts.length - 2] ?? "method"} playbook`;
+    }
+    return `Reading ${rest.split("/").pop()}`;
+  }
+  if (tool === "Write" || tool === "Edit") return "Writing the deliverable";
+  if (tool === "WebFetch") { try { return `Reading ${new URL(rest).host}`; } catch { return "Reading a web page"; } }
+  if (tool === "Grep" || tool === "Glob") return "Searching the source material";
+  if (tool === "Skill") return `Applying the ${rest} method`;
+  if (tool.toLowerCase() === "todo_write" || tool === "TodoWrite") return "Planning the next steps";
+  return "Running analysis";
+}
 
 const GLYPH: Record<string, string> = {
   done: "✓", awaiting_gate: "⏸", running: "●", failed: "✕", pending: "·", blocked: "·",
@@ -19,7 +47,7 @@ const GLYPH: Record<string, string> = {
 
 export default function RunView(props: {
   slug: string; clientName: string; workflow: string; runId: string;
-  phases: Phase[]; artifacts: Artifact[]; initialEvents: Ev[];
+  phases: Phase[]; artifacts: Artifact[]; initialEvents: Ev[]; decisions: Decision[];
 }) {
   const router = useRouter();
   const supabase = useMemo(() => supabaseBrowser(), []);
@@ -28,6 +56,7 @@ export default function RunView(props: {
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [confirmation, setConfirmation] = useState("");
   const feedRef = useRef<HTMLDivElement>(null);
 
   const gate = props.phases.find((p) => p.status === "awaiting_gate");
@@ -64,6 +93,9 @@ export default function RunView(props: {
     setBusy(false);
     if (error) { setErr(error.message); return; }
     setFeedback("");
+    setConfirmation(decision === "approved"
+      ? "Approved — signed and recorded under your name."
+      : "Changes requested — your feedback is folded into the redo, on the record.");
     router.refresh();
   }
 
@@ -80,6 +112,13 @@ export default function RunView(props: {
             {props.workflow}
           </h1>
         </header>
+
+        {confirmation && (
+          <div className="card p-4 flex items-center gap-3 rise" style={{ borderColor: "var(--ok)" }}>
+            <span className="text-ok text-lg leading-none">✓</span>
+            <p className="t-body text-ink-2">{confirmation}</p>
+          </div>
+        )}
 
         {gate && (
           <section className="card p-7 flex flex-col gap-5 rise"
@@ -130,9 +169,19 @@ export default function RunView(props: {
                   <div className="pb-8 min-w-0">
                     <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
                       <span className="t-h2">{p.phase_id}</span>
-                      <span className="t-mono text-ink-3">{p.agent}</span>
-                      {p.status === "running" && <span className="t-mono text-cobalt-ink pulse">working…</span>}
+                      <span className="t-mono text-ink-3">{p.agent} · AI</span>
+                      {p.status === "running" && <span className="t-mono text-cobalt-ink pulse">working since {fmtTime(p.started_at)}</span>}
+                      {p.status === "done" && p.finished_at && (
+                        <span className="t-mono text-ink-3">{fmtTime(p.finished_at)}</span>
+                      )}
                     </div>
+                    {props.decisions.filter((dc) => dc.phase_id === p.id).map((dc, di) => (
+                      <p key={di} className="t-mono mt-1"
+                         style={{ color: dc.decision === "approved" ? "var(--ok)" : "var(--gate)" }}>
+                        {dc.decision === "approved" ? "✓ Approved" : "↺ Changes requested"} by {dc.decided_name ?? "staff"} · {fmtTime(dc.created_at)}
+                        {dc.feedback ? <span className="text-ink-3"> — “{dc.feedback}”</span> : null}
+                      </p>
+                    ))}
                     {art?.content && (
                       <button onClick={() => setOpen(open === art.path ? null : art.path)}
                         className="t-mono text-cobalt-ink hover:underline underline-offset-2 mt-1">
@@ -170,7 +219,7 @@ export default function RunView(props: {
           {events.map((e) => (
             <p key={e.id} className="break-words">
               {e.type === "session_start" && <span className="dim">· session started ({String(e.payload.model ?? "")})</span>}
-              {e.type === "tool" && <><span className="accent">▸</span> {String(e.payload.line ?? "")}</>}
+              {e.type === "tool" && <><span className="accent">▸</span> {humanizeLegacy(String(e.payload.line ?? ""))}</>}
               {e.type === "text" && <span className="dim">✎ {String(e.payload.line ?? "")}</span>}
               {e.type === "done" && <span className="good">✓ session finished</span>}
               {e.type === "error" && <span className="text-danger">✕ {String(e.payload.line ?? "")}</span>}

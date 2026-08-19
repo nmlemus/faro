@@ -52,7 +52,7 @@ export default async function Home() {
             {[
               [clients.length, "accounts"],
               [activeRuns, "active jobs"],
-              [working, "phases running now"],
+              [working, "running now"],
               [gatesN, "waiting on you"],
             ].map(([n, label]) => (
               <div key={label as string} className="flex flex-col gap-0.5">
