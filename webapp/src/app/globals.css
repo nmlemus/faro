@@ -218,11 +218,11 @@ a.card:hover, button.card:hover { box-shadow: var(--sh-2); transform: translateY
 .doc strong { font-weight: 660; }
 
 /* ── the console feed ──────────────────────────────────────────────────── */
-.feed { background: var(--ink); color: var(--paper-2); border-radius: 14px;
+/* the feed is a committed-dark console in BOTH themes, so its palette is
+   pinned — theme tokens would flip the text dark-on-dark in dark mode */
+.feed { background: #0A0B0D; color: #C6CAD1; border: 1px solid #23262B;
+  border-radius: 14px;
   font-family: var(--font-spline-mono); font-size: .73rem; line-height: 1.75; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .feed { background: #0A0B0D; border: 1px solid var(--rule); }
-}
-.feed .dim { opacity: .5; }
+.feed .dim { color: #7E8287; opacity: 1; }
 .feed .accent { color: #9DACF9; }
 .feed .good { color: #8FD8A8; }
