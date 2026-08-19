@@ -53,18 +53,30 @@ def prior_block(run, wf):
     arts = db.select("artifacts", f"run_id=eq.{run['id']}&select=path,content&order=path")
     for a in arts:
         out += f"\n\n===== {a['path']} =====\n{a['content']}"
-    # deliverables of builds_on jobs for the same client
+
+    # recurring jobs: inject THIS job's previous run — week N reads week N-1
+    prev = db.select(
+        "job_runs",
+        f"job_id=eq.{run['job_id']}&id=neq.{run['id']}&select=id,run_key,created_at"
+        f"&order=created_at.desc&limit=1")
+    if prev:
+        for a in db.select("artifacts",
+                           f"run_id=eq.{prev[0]['id']}&select=path,content&order=path"):
+            out += (f"\n\n# Previous run of this job ({prev[0]['run_key']})\n"
+                    f"===== {a['path']} =====\n{a['content']}")
+
+    # builds_on deliverables — LATEST run only per dependency
+    wfs = core.workflows()
     for dep in (wf.get("builds_on") or []):
+        deliverable = wfs.get(dep, {}).get("deliverable")
         rows = db.select(
             "artifacts",
-            f"client_id=eq.{run['client_id']}&select=path,content,job_runs!inner(job_id,jobs!inner(workflow_id))"
-            f"&job_runs.jobs.workflow_id=eq.{dep}")
-        wfs = core.workflows()
-        deliverable = wfs.get(dep, {}).get("deliverable")
+            f"client_id=eq.{run['client_id']}&path=eq.{deliverable}"
+            f"&select=path,content,created_at,job_runs!inner(jobs!inner(workflow_id))"
+            f"&job_runs.jobs.workflow_id=eq.{dep}&order=created_at.desc&limit=1")
         for a in rows:
-            if a["path"] == deliverable:
-                out += (f"\n\n# Previous work: {dep}\nDo not contradict it silently — "
-                        f"disagree explicitly if you must.\n\n===== {dep} -> {a['path']} =====\n{a['content']}")
+            out += (f"\n\n# Previous work: {dep}\nDo not contradict it silently — "
+                    f"disagree explicitly if you must.\n\n===== {dep} -> {a['path']} =====\n{a['content']}")
     return out
 
 
@@ -171,6 +183,29 @@ def run_claude_streaming(phase, persona, prompt, cwd):
 
 
 # ── the work loop ───────────────────────────────────────────────────────────
+
+def period_key(cadence):
+    import datetime
+    now = datetime.date.today()
+    if cadence == "weekly":
+        y, w, _ = now.isocalendar()
+        return f"{y}-W{w:02d}"
+    return now.strftime("%Y-%m")
+
+
+def ensure_recurring_runs():
+    """A recurring job gets one run per period, automatically. The run appears;
+    the gates still belong to humans."""
+    jobs = db.select("jobs", "recurring=not.is.null&select=id,org_id,client_id,recurring")
+    for j in jobs:
+        key = period_key(j["recurring"])
+        if db.select("job_runs", f"job_id=eq.{j['id']}&run_key=eq.{key}&select=id"):
+            continue
+        db.insert("job_runs", [{"job_id": j["id"], "org_id": j["org_id"],
+                                "client_id": j["client_id"], "run_key": key}],
+                  upsert_on="job_id,run_key")
+        print(f"[recurring] run {key} created for job {j['id'][:8]}")
+
 
 def expand_runs():
     """Materialize phases for UI-requested runs. The UI writes intent; only the
@@ -291,11 +326,13 @@ if __name__ == "__main__":
         enqueue(sys.argv[2], sys.argv[3])
     elif "--once" in sys.argv:
         run_one() or print("nothing to claim")
-    elif "--expand" in sys.argv:
+    elif "--expand" in sys.argv or "--tick" in sys.argv:
+        ensure_recurring_runs()
         expand_runs()
     else:
         print(f"worker {WORKER} polling…")
         while True:
+            ensure_recurring_runs()
             expand_runs()
             if not run_one():
                 time.sleep(3)

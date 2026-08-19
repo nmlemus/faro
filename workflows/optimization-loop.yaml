@@ -1,0 +1,74 @@
+# Optimization loop — the retainer heartbeat. Runs weekly, per account.
+#
+# Reads what actually happened, judges it against the plan (or the previous
+# week, when no media plan exists yet), and produces the money-movement table:
+# PAUSE / SCALE / SHIFT / REFRESH / TEST — every row with evidence and expected
+# impact. Nothing moves money by itself: the table stops at a money gate.
+#
+# The engine injects this job's PREVIOUS run automatically, so week N always
+# knows what week N-1 changed and what happened after.
+
+id: optimization-loop
+name: Optimization loop
+description: "Weekly: judge performance against the plan and propose the money movements, each with evidence."
+deliverable: 02-recommendations.md
+recurring: weekly
+builds_on: [growth-audit, website-audit]
+
+phases:
+  - id: performance
+    agent: analyst
+    produces: 01-performance.md
+    requires: []
+    task: |
+      Establish what actually happened this period. Numbers first, judgement second.
+
+      1. Check `client profile -> tools`. For every connected tool, pull the period's
+         real numbers with its CLI (spend, impressions, clicks, conversions, cost per
+         result — whatever the channel reports). Paste the command and its real output.
+      2. For every channel WITHOUT a connected tool: name it as a hole and say exactly
+         which export or connection would fill it. Never estimate around it.
+      3. Compare against the reference, in this order of preference: the media plan's
+         targets if one exists in previous work; otherwise this job's PREVIOUS run
+         (injected above, if any); otherwise the growth audit's baseline. Say which
+         reference you are using.
+      4. Creative fatigue check where the data allows: frequency rising while CTR falls
+         means the ad is tired — flag it.
+      5. Close with the three numbers that changed most vs the reference, each with its
+         origin command.
+
+      House rule 1 applies with full force: this file is the evidence base for money
+      decisions. A plausible number here moves real budget wrongly.
+
+  - id: recommendations
+    agent: strategist
+    produces: 02-recommendations.md
+    requires: [01-performance.md]
+    gate_class: money
+    gate: |
+      This table moves money. Check every row: does it cite a number from
+      01-performance.md? Is the expected impact stated? Is the risk of being wrong
+      named? Approve to hand the movements to execution, or reject with what to change.
+    task: |
+      Turn the measurements into this week's money movements. One table, five verbs:
+
+      | verb | what | evidence | expected impact | risk if wrong |
+      |---|---|---|---|---|
+
+      - **PAUSE** — what stops, why now, what it was costing.
+      - **SCALE** — what gets more budget, the marginal expectation, the ceiling.
+      - **SHIFT** — from where to where, how much, why that amount.
+      - **REFRESH** — which creative is tired (cite the fatigue evidence) and what
+        the replacement brief is.
+      - **TEST** — the one experiment this week earns, per the ab-testing skill:
+        hypothesis, variant, metric, how long it needs.
+
+      Rules:
+      - Every row cites a number from 01-performance.md by name. A row without
+        evidence does not go in the table — it goes in a "considered, not proposed"
+        note with what data would justify it.
+      - State the total net budget change. If it is not zero, say where the money
+        comes from or goes.
+      - If the evidence this week supports NO movement, say so plainly. A quiet week
+        recommendation is a valid deliverable; invented motion is not.
+      - Write the deliverable in the client's language.
