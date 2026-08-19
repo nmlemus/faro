@@ -184,8 +184,9 @@ button { font: inherit; cursor: pointer; }
 .md h3 { font-size: 1rem; margin: 1.1rem 0 .4rem; }
 .md p { margin: .5rem 0; }
 .md ul, .md ol { margin: .5rem 0; padding-left: 1.4rem; }
-.md li { margin: .2rem 0; }
-.md blockquote { margin: .7rem 0; padding: .4rem 1rem; border-left: 3px solid var(--gate); background: var(--s-low); border-radius: 0 8px 8px 0; }
+.md li { margin: .3rem 0; }
+.md blockquote p { margin: .25rem 0; }
+.md blockquote { margin: .7rem 0; padding: .5rem 1rem; border-left: 3px solid var(--gate); background: var(--s-low); border-radius: 0 8px 8px 0; }
 .md code { font-family: "IBM Plex Mono", monospace; font-size: .82em; background: var(--s-mid); padding: .1em .35em; border-radius: 4px; }
 .md pre { background: var(--s-low); border: 1px solid var(--line); border-radius: 8px; padding: .8rem 1rem; overflow-x: auto; }
 .md pre code { background: none; padding: 0; font-size: .78rem; }
@@ -302,53 +303,93 @@ const gateCount = (c) => {
 // ── markdown (compact renderer: headings, lists, tables, fences, quotes) ──
 function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 function inline(s) {
-  return esc(s)
-    .replace(/`([^`]+)`/g, "<code>$1</code>")
-    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+  // Code spans first, as placeholders: their content may hold * or _ that must
+  // not be read as emphasis (e.g. `/en/*`), and bold may legally contain them.
+  const codes = [];
+  let t = esc(s).replace(/`([^`]+)`/g, (m, c) => { codes.push(c); return "\u0000" + (codes.length - 1) + "\u0000"; });
+  t = t
+    .replace(/\*\*([\s\S]+?)\*\*/g, "<strong>$1</strong>")
     .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>")
     .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  return t.replace(/\u0000(\d+)\u0000/g, (m, i) => `<code>${codes[+i]}</code>`);
 }
 function renderMd(src) {
   const lines = src.split("\n");
-  let out = [], i = 0, list = null;
-  const closeList = () => { if (list) { out.push(`</${list}>`); list = null; } };
+  const out = [];
+  let i = 0;
+  const stack = [];                    // open list tags, innermost last
+  const closeTo = (d) => { while (stack.length > d) out.push(`</${stack.pop()}>`); };
+  const isSep = (r) => /^[|\s:-]+$/.test(r) && r.includes("-");
+
   while (i < lines.length) {
-    let L = lines[i];
-    if (/^```/.test(L)) {
-      closeList(); let buf = []; i++;
-      while (i < lines.length && !/^```/.test(lines[i])) buf.push(lines[i++]);
+    const L = lines[i];
+
+    if (/^\s*```/.test(L)) {                                   // fenced code
+      closeTo(0); const buf = []; i++;
+      while (i < lines.length && !/^\s*```/.test(lines[i])) buf.push(lines[i++]);
       i++; out.push(`<pre><code>${esc(buf.join("\n"))}</code></pre>`); continue;
     }
-    if (/^\|/.test(L)) {
-      closeList(); const rows = [];
-      while (i < lines.length && /^\|/.test(lines[i])) rows.push(lines[i++]);
+
+    if (/^\s*\|/.test(L)) {                                   // table
+      closeTo(0); const rows = [];
+      while (i < lines.length && /^\s*\|/.test(lines[i])) rows.push(lines[i++].trim());
       const cells = (r) => r.replace(/^\||\|$/g, "").split("|").map((c) => inline(c.trim()));
+      const hasHeader = rows.length > 1 && isSep(rows[1]);
       let html = '<div class="tbl"><table>';
       rows.forEach((r, ri) => {
-        if (/^\|[\s:-]+\|?$/.test(r.replace(/\|/g, "|"))) { if (/^[|\s:-]+$/.test(r)) return; }
-        const tag = ri === 0 ? "th" : "td";
+        if (isSep(r)) return;
+        const tag = hasHeader && ri === 0 ? "th" : "td";
         html += "<tr>" + cells(r).map((c) => `<${tag}>${c}</${tag}>`).join("") + "</tr>";
       });
       out.push(html + "</table></div>"); continue;
     }
+
     const h = /^(#{1,4})\s+(.*)/.exec(L);
-    if (h) { closeList(); out.push(`<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`); i++; continue; }
-    if (/^---+\s*$/.test(L)) { closeList(); out.push("<hr>"); i++; continue; }
-    if (/^>\s?/.test(L)) {
-      closeList(); let buf = [];
-      while (i < lines.length && /^>\s?/.test(lines[i])) buf.push(lines[i++].replace(/^>\s?/, ""));
-      out.push(`<blockquote>${buf.map(inline).join("<br>")}</blockquote>`); continue;
+    if (h) { closeTo(0); out.push(`<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`); i++; continue; }
+
+    if (/^\s*---+\s*$/.test(L)) { closeTo(0); out.push("<hr>"); i++; continue; }
+
+    if (/^\s*>\s?/.test(L)) {                                 // blockquote, wrapped lines joined
+      closeTo(0); const buf = [];
+      while (i < lines.length && /^\s*>\s?/.test(lines[i])) buf.push(lines[i++].replace(/^\s*>\s?/, ""));
+      const paras = buf.join("\n").split(/\n\s*\n/)
+        .map((q) => inline(q.replace(/\s*\n\s*/g, " ").trim())).filter(Boolean);
+      out.push(`<blockquote>${paras.map((q) => `<p>${q}</p>`).join("")}</blockquote>`); continue;
     }
-    const ol = /^\s*\d+\.\s+(.*)/.exec(L), ulm = /^\s*[-*]\s+(.*)/.exec(L);
-    if (ol || ulm) {
-      const want = ol ? "ol" : "ul";
-      if (list !== want) { closeList(); out.push(`<${want}>`); list = want; }
-      out.push(`<li>${inline((ol || ulm)[1])}</li>`); i++; continue;
+
+    const li = /^(\s*)([-*]|\d+\.)\s+(.*)/.exec(L);
+    if (li) {
+      const depth = Math.min(2, Math.floor(li[1].length / 2)) + 1;  // 1 = top level
+      const want = /\d/.test(li[2]) ? "ol" : "ul";
+      closeTo(depth);
+      while (stack.length < depth) { out.push(`<${want}>`); stack.push(want); }
+      // lazy continuation: wrapped lines belong to this item until blank/structure
+      let text = li[3]; i++;
+      while (i < lines.length) {
+        const N = lines[i];
+        if (/^\s*$/.test(N)) break;
+        if (/^(\s*)([-*]|\d+\.)\s+/.test(N)) break;
+        if (/^\s*(#{1,4}\s|```|\||>)/.test(N) || /^\s*---+\s*$/.test(N)) break;
+        text += " " + N.trim(); i++;
+      }
+      out.push(`<li>${inline(text)}</li>`); continue;
     }
-    if (/^\s*$/.test(L)) { closeList(); i++; continue; }
-    closeList(); out.push(`<p>${inline(L)}</p>`); i++;
+
+    if (/^\s*$/.test(L)) { closeTo(0); i++; continue; }
+
+    // paragraph: consecutive plain lines join into ONE flowing <p> — artifacts
+    // arrive hard-wrapped at ~80 cols and must read as prose, not as shards
+    closeTo(0);
+    const buf = [L.trim()]; i++;
+    while (i < lines.length) {
+      const N = lines[i];
+      if (/^\s*$/.test(N)) break;
+      if (/^\s*(#{1,4}\s|```|\||>|[-*]\s|\d+\.\s)/.test(N) || /^\s*---+\s*$/.test(N)) break;
+      buf.push(N.trim()); i++;
+    }
+    out.push(`<p>${inline(buf.join(" "))}</p>`);
   }
-  closeList();
+  closeTo(0);
   return out.join("\n");
 }
 
