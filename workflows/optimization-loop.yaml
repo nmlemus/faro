@@ -36,6 +36,10 @@ phases:
          means the ad is tired — flag it.
       5. Close with the three numbers that changed most vs the reference, each with its
          origin command.
+      6. End the file with a ```metrics fence (house rule 1b) carrying every measured
+         KPI of the period — spend, conversions, CAC, CTR per channel, one CSV line
+         each (metric,channel,period,value,unit). Only numbers that appear above with
+         their origin; if nothing was measurable this period, omit the fence entirely.
 
       House rule 1 applies with full force: this file is the evidence base for money
       decisions. A plausible number here moves real budget wrongly.

@@ -28,6 +28,9 @@ phases:
       4. The three most important deltas vs last month, with origins.
       5. Open holes, carried forward explicitly.
 
+      Also: end the file with a ```metrics fence (house rule 1b) carrying the month's
+      measured KPIs, one CSV line each (metric,channel,period,value,unit) — only
+      numbers that appear above with their origin. No fence if nothing was measurable.
   - id: report
     agent: strategist
     produces: 02-monthly-report.md
