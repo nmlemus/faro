@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+/* ── Faro design tokens — editorial-instrument, light-first ─────────────── */
+:root {
+  --paper:      #FBFAF6;
+  --paper-2:    #F3F1EA;
+  --paper-3:    #EAE7DD;
+  --ink:        #16181A;
+  --ink-2:      #4A4E52;
+  --ink-3:      #83888D;
+  --rule:       #DCD8CC;
+
+  --cobalt:     #2743E3;
+  --cobalt-soft:#E4E8FC;
+  --gate:       #9A6108;
+  --gate-soft:  #F7E9CF;
+  --ok:         #1F6B45;
+  --ok-soft:    #DFF0E5;
+  --danger:     #A8231A;
+  --danger-soft:#F9E3E0;
+
+  --shadow-card: 0 1px 2px rgb(22 24 26 / 0.04), 0 8px 24px -12px rgb(22 24 26 / 0.10);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:      #121316;
+    --paper-2:    #191B1F;
+    --paper-3:    #22252A;
+    --ink:        #ECEAE4;
+    --ink-2:      #B4B2AA;
+    --ink-3:      #7D7C76;
+    --rule:       #2E3136;
+    --cobalt:     #8B9CF7;
+    --cobalt-soft:#20264A;
+    --gate:       #E5B45F;
+    --gate-soft:  #3A2D10;
+    --ok:         #7BC79C;
+    --ok-soft:    #14301F;
+    --danger:     #EFA49B;
+    --danger-soft:#3C1512;
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -12px rgb(0 0 0 / 0.5);
+  }
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-paper-3: var(--paper-3);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-rule: var(--rule);
+  --color-cobalt: var(--cobalt);
+  --color-cobalt-soft: var(--cobalt-soft);
+  --color-gate: var(--gate);
+  --color-gate-soft: var(--gate-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --font-display: var(--font-fraunces);
+  --font-sans: var(--font-instrument);
+  --font-mono: var(--font-spline-mono);
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--cobalt-soft); }
+
+/* the five-step type scale — the whole app uses these and nothing else */
+.t-display { font-family: var(--font-fraunces); font-size: clamp(2rem, 4.5vw, 3.2rem); line-height: 1.05; letter-spacing: -0.015em; font-weight: 560; font-variation-settings: "opsz" 60; }
+.t-h1      { font-family: var(--font-fraunces); font-size: clamp(1.5rem, 2.6vw, 2.1rem); line-height: 1.12; letter-spacing: -0.01em; font-weight: 560; }
+.t-h2      { font-size: 1.06rem; font-weight: 600; letter-spacing: -0.005em; }
+.t-body    { font-size: 0.94rem; line-height: 1.65; }
+.t-mono    { font-family: var(--font-spline-mono); font-size: 0.76rem; }
+.t-eyebrow { font-family: var(--font-spline-mono); font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); }
+
+.card { background: color-mix(in srgb, var(--paper) 40%, white 10%); background: var(--paper-2); border: 1px solid var(--rule); border-radius: 14px; box-shadow: var(--shadow-card); }
+
+.pulse { animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
+
+/* rendered deliverables read as documents, not as app chrome */
+.doc { max-width: 72ch; font-size: 0.95rem; line-height: 1.7; }
+.doc h1 { font-family: var(--font-fraunces); font-size: 1.9rem; line-height: 1.15; letter-spacing: -0.01em; font-weight: 560; margin: 0.4rem 0 1rem; }
+.doc h2 { font-family: var(--font-fraunces); font-size: 1.35rem; font-weight: 560; margin: 2rem 0 0.6rem; }
+.doc h3 { font-size: 1rem; font-weight: 650; margin: 1.4rem 0 0.4rem; }
+.doc p { margin: 0.6rem 0; }
+.doc ul, .doc ol { margin: 0.6rem 0; padding-left: 1.4rem; }
+.doc li { margin: 0.25rem 0; }
+.doc blockquote { border-left: 3px solid var(--gate); background: var(--paper-2); padding: 0.5rem 1.1rem; margin: 0.9rem 0; border-radius: 0 10px 10px 0; }
+.doc code { font-family: var(--font-spline-mono); font-size: 0.82em; background: var(--paper-3); padding: 0.1em 0.35em; border-radius: 4px; }
+.doc pre { background: var(--paper-2); border: 1px solid var(--rule); border-radius: 10px; padding: 0.9rem 1.1rem; overflow-x: auto; margin: 0.9rem 0; }
+.doc pre code { background: none; padding: 0; font-size: 0.78rem; line-height: 1.6; }
+.doc table { border-collapse: collapse; margin: 0.9rem 0; font-size: 0.86rem; display: block; overflow-x: auto; }
+.doc th, .doc td { border: 1px solid var(--rule); padding: 0.5rem 0.7rem; text-align: left; vertical-align: top; }
+.doc th { background: var(--paper-2); font-family: var(--font-spline-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.doc hr { border: none; border-top: 1px solid var(--rule); margin: 1.6rem 0; }
+.doc a { color: var(--cobalt); text-decoration: underline; text-underline-offset: 2px; }
+.doc strong { font-weight: 650; }
