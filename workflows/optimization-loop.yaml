@@ -13,7 +13,7 @@ name: Optimization loop
 description: "Weekly: judge performance against the plan and propose the money movements, each with evidence."
 deliverable: 02-recommendations.md
 recurring: weekly
-builds_on: [growth-audit, website-audit]
+builds_on: [media-plan, growth-audit, website-audit]
 
 phases:
   - id: performance

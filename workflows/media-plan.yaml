@@ -1,0 +1,81 @@
+# Media plan — where the client signs the money.
+#
+# Objectives -> measurement contract -> the plan itself. The measurement contract
+# comes BEFORE the money gate on purpose: a target without a defined measurement is
+# not a target, and the optimization loop will judge every week against this document.
+
+id: media-plan
+name: Media plan
+description: "Objectives, the measurement contract, and the budget split the client signs — the document the weekly loop optimizes against."
+deliverable: 03-media-plan.md
+builds_on: [website-audit, growth-audit]
+
+phases:
+  - id: objectives
+    agent: strategist
+    produces: 01-objectives.md
+    requires: []
+    task: |
+      Define what this money is for. Read the audits injected above first — the plan
+      must attack their findings, not float beside them.
+
+      1. The business objective, in the client's unit (customers, bookings, installs —
+         not clicks).
+      2. Two or three campaign objectives that serve it, each with a number and a date.
+      3. The constraints that shape everything: total monthly budget (from the client
+         profile or stated as the open question it is), geography, seasonality,
+         exclusions.
+      4. What we are explicitly NOT pursuing this cycle, and why — a plan without
+         declared non-goals sprawls.
+
+  - id: measurement
+    agent: measurement-analyst
+    produces: 02-measurement-contract.md
+    requires: [01-objectives.md]
+    gate_class: measurement
+    gate: |
+      This contract defines what every later number means. Check: does each objective
+      have a defined measurement, a tracking mechanism, and an attribution lens? Is
+      anything unmeasurable at this client's scale being promised anyway?
+    task: |
+      Write the measurement contract for the objectives.
+
+      For each objective: the metric, where it lives (which tool), how it is tracked
+      (events, UTMs, conversion definitions), the attribution lens that applies, and
+      the known ways that number can lie.
+
+      Then the tracking work order: what must be set up or fixed BEFORE spend starts,
+      concretely — events to create, UTM convention, conversions to define. Check
+      `client profile -> tools` for what is actually connected; everything else is a
+      hole with its unblock condition.
+
+      Close with the honesty section: what CANNOT be measured at this account's scale
+      and volume, so nobody promises it later.
+
+  - id: plan
+    agent: media-buyer
+    produces: 03-media-plan.md
+    requires: [01-objectives.md, 02-measurement-contract.md]
+    gate_class: money
+    gate: |
+      This is the money. Check every channel line: budget, expected CPA/ROAS with its
+      reasoning, the kill criterion, and the measurement per the contract. Approving
+      this plan is signing the spend.
+    task: |
+      Build the plan the client signs. Per channel:
+
+      | channel | monthly budget | expected CPA/ROAS + reasoning | kill criterion | measured by |
+      |---|---|---|---|---|
+
+      - Every expectation carries its reasoning: prior data from the audits, platform
+        estimates labelled as estimates, or an assumption named as one. House rule 1:
+        no benchmark presented as fact without a source.
+      - Flighting: what starts when, and why that order. New channels get bounded
+        test budgets with explicit windows and success bars.
+      - The kill criterion per channel: the number and date at which we stop.
+      - Reserve: state what share stays unallocated for the loop to redeploy.
+      - Total must reconcile to the budget in 01-objectives.md, to the dollar.
+
+      Write it in the client's language. This document is the contract the weekly
+      optimization loop reports against — write nothing you would not want to be
+      held to on a Monday.

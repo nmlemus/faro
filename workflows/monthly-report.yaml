@@ -9,7 +9,7 @@ name: Monthly report
 description: "Monthly: the client-facing account of what happened, what changed, and what comes next."
 deliverable: 02-monthly-report.md
 recurring: monthly
-builds_on: [growth-audit, website-audit, optimization-loop]
+builds_on: [media-plan, growth-audit, website-audit, optimization-loop]
 
 phases:
   - id: compile

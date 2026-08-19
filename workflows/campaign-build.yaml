@@ -1,0 +1,86 @@
+# Campaign build — from a signed plan to a launch-ready pack, one job per channel
+# focus. Nothing here touches a platform: the pack ends at a publish gate and a
+# human presses the buttons (gated execution arrives later as stage 2).
+
+id: campaign-build
+name: Campaign build
+description: "Structure, ads at scale, landing spec, tracking, and the launch pack — everything ready for the button."
+deliverable: 05-launch-pack.md
+builds_on: [media-plan]
+
+phases:
+  - id: structure
+    agent: media-buyer
+    produces: 01-structure.md
+    requires: []
+    task: |
+      Translate the signed media plan (injected above) into buildable structure for
+      the channel(s) this build covers.
+
+      Campaigns -> ad sets/groups -> audiences, with: naming per a stated convention,
+      budgets per the plan (reconcile to it), bid strategy with reasoning, audience
+      definitions concrete enough to build from, and exclusions. Flag anything the
+      plan left ambiguous instead of deciding it silently.
+
+  - id: ads
+    agent: copywriter
+    produces: 02-ads.md
+    requires: [01-structure.md]
+    gate_class: craft
+    gate: |
+      These words carry the client's name into paid placements. Unbacked claims are
+      the kill check — a claim in an ad is a legal surface, not just a style issue.
+      Voice, angles, and platform fit second.
+    task: |
+      Write the ads at scale, per the ad-creative skill: for each ad set, headline and
+      description variations mapped to distinct angles (not synonyms of one angle),
+      within each platform's limits per the social-by-platform skill.
+
+      House rules apply at full force: no factual claim without backing — in paid
+      placements an unbacked claim is a legal exposure, not a style problem. In the
+      client's voice and language. Mark the recommended starter variation per ad set
+      and why.
+
+  - id: landing
+    agent: copywriter
+    produces: 03-landing-spec.md
+    requires: [02-ads.md]
+    task: |
+      Spec the landing experience per the landing-page skill: where each ad group
+      lands, message match from ad to page (quote both sides), the one action per
+      page, objections answered, proof available (per brand.md — if Proof is empty,
+      the page is written differently, not inflated). If existing pages serve, say so
+      and spec only the deltas.
+
+  - id: tracking
+    agent: measurement-analyst
+    produces: 04-tracking.md
+    requires: [01-structure.md, 03-landing-spec.md]
+    task: |
+      The tracking pack for this build, per the measurement contract in the media
+      plan: UTM values for every ad set (following the convention), conversion events
+      the landing pages must fire, and the verification checklist — how we confirm
+      each number flows before real budget runs. Anything unverifiable is a named
+      hole with its unblock.
+
+  - id: launch-pack
+    agent: media-buyer
+    produces: 05-launch-pack.md
+    requires: [02-ads.md, 04-tracking.md]
+    gate_class: publish
+    gate: |
+      Approving this pack clears it for the platforms. Check the reconciliation to
+      the signed plan, the go/no-go checklist, and that day-one/week-one checks are
+      concrete. After approval, a human executes — nothing publishes itself.
+    task: |
+      Assemble the launch pack — the single document a human executes from:
+
+      1. Build checklist in platform order: campaign -> settings -> audiences ->
+         ads -> tracking, each line concrete enough to execute without interpreting.
+      2. Budget reconciliation against the signed media plan, to the dollar.
+      3. Go/no-go preconditions (tracking verified per 04-tracking.md, pages live).
+      4. Day-one checks and week-one checks, with the numbers that would trigger an
+         early stop (from the plan's kill criteria).
+
+      House rule 5 closes it: this pack ready is the system's job done; pressing the
+      buttons is a human's.
