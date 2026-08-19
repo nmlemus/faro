@@ -1,0 +1,6 @@
+.git
+.vendor
+docs
+# Real client data never enters the image; the template must.
+clients/*
+!clients/_template

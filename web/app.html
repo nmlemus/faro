@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agency Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root {
+  --primary:#0F5C57; --on-primary:#fff; --primary-c:#A8F2E8; --on-primary-c:#00201D;
+  --gate:#8A5A11; --on-gate:#fff; --gate-c:#FFDDB0; --on-gate-c:#2C1700;
+  --err:#A32017; --err-c:#FBE7E4;
+  --ok:#1B6B3A; --ok-c:#DCF2E3;
+  --surface:#F5FAF8; --s-lowest:#fff; --s-low:#EFF5F3; --s-mid:#E9F1EF; --s-high:#E3EBE9; --s-highest:#DDE5E3;
+  --ink:#171D1C; --ink-soft:#3F4947; --ink-faint:#6F7977;
+  --line:#C4CDCB;
+  --a-strategist:#0F5C57; --a-analyst:#1B5A72; --a-researcher:#2C6046;
+  --a-channel-planner:#3C5480; --a-copywriter:#5F4A7D; --a-editor:#7A4257;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --primary:#6FD9CD; --on-primary:#00382F; --primary-c:#005047; --on-primary-c:#A8F2E8;
+    --gate:#F0BD72; --on-gate:#472A00; --gate-c:#663D00; --on-gate-c:#FFDDB0;
+    --err:#F2A9A2; --err-c:#3A1512;
+    --ok:#8FD8A8; --ok-c:#123A22;
+    --surface:#0D1211; --s-lowest:#070B0A; --s-low:#151B1A; --s-mid:#191F1E; --s-high:#232A28; --s-highest:#2E3533;
+    --ink:#DDE4E2; --ink-soft:#BEC9C6; --ink-faint:#889390;
+    --line:#3F4947;
+    --a-strategist:#6FD9CD; --a-analyst:#7FCDE8; --a-researcher:#86D5AC;
+    --a-channel-planner:#A9C0F0; --a-copywriter:#CDB6F0; --a-editor:#F0AFC2;
+  }
+}
+:root[data-theme="dark"] {
+  --primary:#6FD9CD; --on-primary:#00382F; --primary-c:#005047; --on-primary-c:#A8F2E8;
+  --gate:#F0BD72; --on-gate:#472A00; --gate-c:#663D00; --on-gate-c:#FFDDB0;
+  --err:#F2A9A2; --err-c:#3A1512;
+  --ok:#8FD8A8; --ok-c:#123A22;
+  --surface:#0D1211; --s-lowest:#070B0A; --s-low:#151B1A; --s-mid:#191F1E; --s-high:#232A28; --s-highest:#2E3533;
+  --ink:#DDE4E2; --ink-soft:#BEC9C6; --ink-faint:#889390;
+  --line:#3F4947;
+  --a-strategist:#6FD9CD; --a-analyst:#7FCDE8; --a-researcher:#86D5AC;
+  --a-channel-planner:#A9C0F0; --a-copywriter:#CDB6F0; --a-editor:#F0AFC2;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--surface); color: var(--ink);
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: 15px; line-height: 1.55; -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; cursor: pointer; }
+.mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+.app { display: grid; grid-template-columns: 250px 1fr; height: 100vh; }
+@media (max-width: 860px) { .app { grid-template-columns: 1fr; } .side { display: none; } }
+
+/* ── sidebar ── */
+.side {
+  background: var(--s-low); border-right: 1px solid var(--line);
+  display: flex; flex-direction: column; overflow-y: auto;
+}
+.brand { padding: 1.2rem 1.1rem .9rem; border-bottom: 1px solid var(--line); }
+.brand h1 {
+  margin: 0; font-family: "Bricolage Grotesque", sans-serif;
+  font-size: 1.35rem; font-weight: 800; letter-spacing: -.02em;
+}
+.brand span { font-family: "IBM Plex Mono", monospace; font-size: .68rem; color: var(--ink-faint); letter-spacing: .1em; text-transform: uppercase; }
+.side-sec { padding: .9rem 1.1rem .3rem; font-family: "IBM Plex Mono", monospace; font-size: .66rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); }
+.cl-list { display: flex; flex-direction: column; padding: 0 .55rem; gap: 2px; }
+.cl-item {
+  text-align: left; background: none; border: none; color: var(--ink);
+  border-radius: 10px; padding: .55rem .6rem;
+  display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+}
+.cl-item:hover { background: var(--s-high); }
+.cl-item.on { background: var(--primary-c); color: var(--on-primary-c); }
+.cl-item .nm { font-weight: 600; font-size: .92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badge {
+  min-width: 18px; height: 18px; border-radius: 999px; flex: none;
+  background: var(--gate); color: var(--on-gate);
+  font-family: "IBM Plex Mono", monospace; font-size: .68rem; font-weight: 600;
+  display: grid; place-items: center; padding-inline: 4px;
+}
+.side-foot { margin-top: auto; padding: 1rem 1.1rem; border-top: 1px solid var(--line); }
+.btn {
+  display: inline-flex; align-items: center; gap: .45rem;
+  background: var(--primary); color: var(--on-primary);
+  border: none; border-radius: 999px; padding: .55rem 1.1rem;
+  font-weight: 600; font-size: .88rem;
+}
+.btn:hover { filter: brightness(1.1); }
+.btn:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+.btn.ghost { background: var(--s-high); color: var(--ink); }
+.btn.gate { background: var(--gate); color: var(--on-gate); }
+.btn.danger { background: var(--err-c); color: var(--err); }
+.btn:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+
+/* ── main ── */
+.main { overflow-y: auto; padding: clamp(1rem, 3vw, 2.2rem); display: flex; flex-direction: column; gap: 1.4rem; }
+.crumb { font-family: "IBM Plex Mono", monospace; font-size: .72rem; color: var(--ink-faint); letter-spacing: .06em; }
+.h-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: .6rem 1rem; }
+.h-row h2 { margin: 0; font-family: "Bricolage Grotesque", sans-serif; font-size: clamp(1.5rem, 3vw, 2.1rem); font-weight: 800; letter-spacing: -.02em; }
+.h-row .sub { color: var(--ink-faint); font-size: .88rem; }
+
+/* engagement map */
+.map { display: flex; align-items: stretch; gap: 0; overflow-x: auto; padding-bottom: .4rem; }
+.map-card {
+  flex: none; width: 215px; text-align: left;
+  background: var(--s-low); border: 1px solid var(--line); border-radius: 14px;
+  padding: .85rem .95rem; display: flex; flex-direction: column; gap: .45rem;
+  color: var(--ink); transition: border-color .15s ease, background .15s ease;
+}
+.map-card:hover { background: var(--s-mid); }
+.map-card.on { border-color: var(--primary); background: var(--s-mid); }
+.map-card.gated { border-color: var(--gate); }
+.map-card .t { font-family: "IBM Plex Mono", monospace; font-size: .8rem; font-weight: 600; }
+.map-card .st { font-size: .74rem; color: var(--ink-faint); }
+.map-link { flex: none; width: 26px; display: grid; place-items: center; color: var(--ink-faint); }
+.dots { display: flex; gap: 4px; }
+.dot { width: 10px; height: 10px; border-radius: 999px; background: var(--s-highest); border: 1px solid var(--line); }
+.dot.done { background: var(--ok); border-color: var(--ok); }
+.dot.gate { background: var(--gate); border-color: var(--gate); animation: pulse 1.6s ease-in-out infinite; }
+.dot.failed { background: var(--err); border-color: var(--err); }
+.dot.run { background: var(--primary); border-color: var(--primary); animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .dot { animation: none !important; } }
+
+.chip {
+  font-family: "IBM Plex Mono", monospace; font-size: .68rem; font-weight: 600;
+  padding: .14rem .55rem; border-radius: 6px; width: fit-content;
+}
+.chip.gate { background: var(--gate-c); color: var(--on-gate-c); }
+.chip.run { background: var(--primary-c); color: var(--on-primary-c); }
+.chip.done { background: var(--ok-c); color: var(--ok); }
+.chip.failed { background: var(--err-c); color: var(--err); }
+.chip.idle { background: var(--s-high); color: var(--ink-faint); }
+
+/* job panel */
+.panel { background: var(--s-low); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
+.panel-head { padding: 1.1rem 1.3rem; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: center; gap: .7rem 1rem; }
+.panel-head h3 { margin: 0; font-family: "Bricolage Grotesque", sans-serif; font-size: 1.25rem; font-weight: 800; }
+.panel-head .grow { flex: 1; }
+.panel-body { padding: 1.2rem 1.3rem; display: flex; flex-direction: column; gap: 1.2rem; }
+
+.phases { display: flex; flex-direction: column; gap: 2px; }
+.ph {
+  display: grid; grid-template-columns: 26px 1fr auto; gap: .8rem; align-items: center;
+  padding: .55rem .6rem; border-radius: 10px; border: none; background: none;
+  text-align: left; color: var(--ink); width: 100%;
+}
+.ph:hover { background: var(--s-mid); }
+.ph .pin { width: 12px; height: 12px; border-radius: 999px; justify-self: center; }
+.ph .nm { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ph .nm b { font-size: .92rem; }
+.ph .nm span { font-family: "IBM Plex Mono", monospace; font-size: .7rem; color: var(--ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.gatebox { background: var(--gate-c); color: var(--on-gate-c); border-radius: 14px; padding: 1rem 1.2rem; display: flex; flex-direction: column; gap: .7rem; }
+.gatebox .lbl { font-family: "IBM Plex Mono", monospace; font-size: .7rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+.gatebox p { margin: 0; font-size: .92rem; }
+.gatebox .acts { display: flex; flex-wrap: wrap; gap: .6rem; }
+.gatebox textarea {
+  width: 100%; min-height: 64px; resize: vertical;
+  font: inherit; font-size: .9rem; color: var(--ink);
+  background: var(--s-lowest); border: 1px solid var(--line); border-radius: 10px; padding: .6rem .75rem;
+}
+
+.logbox {
+  background: var(--s-lowest); border: 1px solid var(--line); border-radius: 10px;
+  padding: .8rem 1rem; font-family: "IBM Plex Mono", monospace; font-size: .74rem;
+  line-height: 1.7; color: var(--ink-soft); max-height: 220px; overflow: auto; white-space: pre-wrap;
+}
+
+/* artifact viewer */
+.viewer { background: var(--s-lowest); border: 1px solid var(--line); border-radius: 14px; }
+.viewer-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .7rem 1.1rem; border-bottom: 1px solid var(--line); }
+.viewer-head .f { font-family: "IBM Plex Mono", monospace; font-size: .78rem; color: var(--ink-soft); }
+.md { padding: 1.2rem 1.4rem 1.6rem; max-width: 76ch; }
+.md h1 { font-family: "Bricolage Grotesque", sans-serif; font-size: 1.6rem; letter-spacing: -.02em; line-height: 1.15; margin: .2rem 0 .8rem; }
+.md h2 { font-family: "Bricolage Grotesque", sans-serif; font-size: 1.2rem; margin: 1.4rem 0 .5rem; }
+.md h3 { font-size: 1rem; margin: 1.1rem 0 .4rem; }
+.md p { margin: .5rem 0; }
+.md ul, .md ol { margin: .5rem 0; padding-left: 1.4rem; }
+.md li { margin: .2rem 0; }
+.md blockquote { margin: .7rem 0; padding: .4rem 1rem; border-left: 3px solid var(--gate); background: var(--s-low); border-radius: 0 8px 8px 0; }
+.md code { font-family: "IBM Plex Mono", monospace; font-size: .82em; background: var(--s-mid); padding: .1em .35em; border-radius: 4px; }
+.md pre { background: var(--s-low); border: 1px solid var(--line); border-radius: 8px; padding: .8rem 1rem; overflow-x: auto; }
+.md pre code { background: none; padding: 0; font-size: .78rem; }
+.md .tbl { overflow-x: auto; margin: .7rem 0; }
+.md table { border-collapse: collapse; font-size: .85rem; min-width: 480px; }
+.md th, .md td { border: 1px solid var(--line); padding: .45rem .65rem; text-align: left; vertical-align: top; }
+.md th { background: var(--s-mid); font-family: "IBM Plex Mono", monospace; font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; }
+.md hr { border: none; border-top: 1px solid var(--line); margin: 1.2rem 0; }
+.md a { color: var(--primary); }
+
+/* start cards & empty states */
+.starters { display: grid; gap: .8rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.starter { background: var(--s-low); border: 1px solid var(--line); border-radius: 14px; padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: .5rem; }
+.starter b { font-family: "IBM Plex Mono", monospace; font-size: .85rem; }
+.starter p { margin: 0; font-size: .84rem; color: var(--ink-soft); }
+.starter .btn { margin-top: auto; align-self: flex-start; }
+
+.empty { border: 1.5px dashed var(--line); border-radius: 18px; padding: 2.2rem; display: flex; flex-direction: column; gap: .8rem; align-items: flex-start; }
+.empty h3 { margin: 0; font-family: "Bricolage Grotesque", sans-serif; font-size: 1.3rem; }
+.empty p { margin: 0; color: var(--ink-soft); max-width: 52ch; }
+
+/* modal */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: grid; place-items: center; padding: 1rem; z-index: 10; }
+.modal { background: var(--s-lowest); border: 1px solid var(--line); border-radius: 18px; width: min(560px, 100%); max-height: 92vh; overflow-y: auto; padding: 1.4rem 1.5rem; display: flex; flex-direction: column; gap: .9rem; }
+.modal h3 { margin: 0; font-family: "Bricolage Grotesque", sans-serif; font-size: 1.3rem; }
+.field { display: flex; flex-direction: column; gap: .25rem; }
+.field label { font-size: .8rem; font-weight: 600; }
+.field small { font-size: .74rem; color: var(--ink-faint); }
+.field input, .field select {
+  font: inherit; color: var(--ink); background: var(--s-low);
+  border: 1px solid var(--line); border-radius: 10px; padding: .55rem .7rem;
+}
+.tools-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .3rem; }
+.tools-grid label { display: flex; gap: .45rem; align-items: center; font-size: .84rem; font-family: "IBM Plex Mono", monospace; }
+.modal .acts { display: flex; justify-content: flex-end; gap: .6rem; }
+.err-msg { color: var(--err); font-size: .84rem; }
+
+.toast {
+  position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%);
+  background: var(--ink); color: var(--surface); border-radius: 999px;
+  padding: .55rem 1.2rem; font-size: .86rem; z-index: 20; opacity: 0;
+  transition: opacity .25s ease; pointer-events: none;
+}
+.toast.on { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand"><h1>agency</h1><span>console</span></div>
+    <div class="side-sec">Clients</div>
+    <nav class="cl-list" id="cl-list"></nav>
+    <div class="side-foot"><button class="btn" id="btn-new">+ New client</button></div>
+  </aside>
+  <main class="main" id="main"></main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const $ = (s, r) => (r || document).querySelector(s);
+const el = (t, cls, txt) => { const n = document.createElement(t); if (cls) n.className = cls; if (txt !== undefined) n.textContent = txt; return n; };
+const api = async (path, body) => {
+  const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : undefined);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+};
+let toastTimer;
+const toast = (m) => { const t = $("#toast"); t.textContent = m; t.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 2600); };
+
+const AGENT_TONE = (a) => `var(--a-${a})`;
+
+// UI state, kept across polls
+const ui = { client: null, job: null, artifact: null, modal: false, lastJSON: "" };
+let STATE = null;
+
+// ── job helpers ──────────────────────────────────────────────
+function jobSummary(wf, job) {
+  if (!job) return { label: "not started", cls: "idle", gatePhase: null };
+  if (job.running) return { label: "running", cls: "run", gatePhase: null };
+  let gatePhase = null, failed = null, done = 0;
+  for (const ph of wf.phases) {
+    const st = (job.phases[ph.id] || {}).status;
+    if (st === "awaiting-gate") gatePhase = ph;
+    if (st === "failed") failed = ph;
+    if (st === "done") done++;
+  }
+  if (gatePhase) return { label: "waiting for you", cls: "gate", gatePhase };
+  if (failed) return { label: `failed at ${failed.id}`, cls: "failed", gatePhase: null };
+  if (done === wf.phases.length) return { label: "complete", cls: "done", gatePhase: null };
+  if (done > 0) return { label: `${done}/${wf.phases.length} phases`, cls: "idle", gatePhase: null };
+  return { label: "not started", cls: "idle", gatePhase: null };
+}
+const gateCount = (c) => {
+  let n = 0;
+  for (const wf of STATE.workflows) {
+    const s = jobSummary(wf, c.jobs[wf.id]);
+    if (s.cls === "gate") n++;
+  }
+  return n;
+};
+
+// ── markdown (compact renderer: headings, lists, tables, fences, quotes) ──
+function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function inline(s) {
+  return esc(s)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>")
+    .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+}
+function renderMd(src) {
+  const lines = src.split("\n");
+  let out = [], i = 0, list = null;
+  const closeList = () => { if (list) { out.push(`</${list}>`); list = null; } };
+  while (i < lines.length) {
+    let L = lines[i];
+    if (/^```/.test(L)) {
+      closeList(); let buf = []; i++;
+      while (i < lines.length && !/^```/.test(lines[i])) buf.push(lines[i++]);
+      i++; out.push(`<pre><code>${esc(buf.join("\n"))}</code></pre>`); continue;
+    }
+    if (/^\|/.test(L)) {
+      closeList(); const rows = [];
+      while (i < lines.length && /^\|/.test(lines[i])) rows.push(lines[i++]);
+      const cells = (r) => r.replace(/^\||\|$/g, "").split("|").map((c) => inline(c.trim()));
+      let html = '<div class="tbl"><table>';
+      rows.forEach((r, ri) => {
+        if (/^\|[\s:-]+\|?$/.test(r.replace(/\|/g, "|"))) { if (/^[|\s:-]+$/.test(r)) return; }
+        const tag = ri === 0 ? "th" : "td";
+        html += "<tr>" + cells(r).map((c) => `<${tag}>${c}</${tag}>`).join("") + "</tr>";
+      });
+      out.push(html + "</table></div>"); continue;
+    }
+    const h = /^(#{1,4})\s+(.*)/.exec(L);
+    if (h) { closeList(); out.push(`<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`); i++; continue; }
+    if (/^---+\s*$/.test(L)) { closeList(); out.push("<hr>"); i++; continue; }
+    if (/^>\s?/.test(L)) {
+      closeList(); let buf = [];
+      while (i < lines.length && /^>\s?/.test(lines[i])) buf.push(lines[i++].replace(/^>\s?/, ""));
+      out.push(`<blockquote>${buf.map(inline).join("<br>")}</blockquote>`); continue;
+    }
+    const ol = /^\s*\d+\.\s+(.*)/.exec(L), ulm = /^\s*[-*]\s+(.*)/.exec(L);
+    if (ol || ulm) {
+      const want = ol ? "ol" : "ul";
+      if (list !== want) { closeList(); out.push(`<${want}>`); list = want; }
+      out.push(`<li>${inline((ol || ulm)[1])}</li>`); i++; continue;
+    }
+    if (/^\s*$/.test(L)) { closeList(); i++; continue; }
+    closeList(); out.push(`<p>${inline(L)}</p>`); i++;
+  }
+  closeList();
+  return out.join("\n");
+}
+
+// ── render ───────────────────────────────────────────────────
+function render() {
+  if (!STATE || ui.modal) return;
+  renderSidebar();
+  renderMain();
+}
+
+function renderSidebar() {
+  const list = $("#cl-list");
+  list.replaceChildren();
+  if (!STATE.clients.length) {
+    list.appendChild(el("div", "side-sec", "none yet"));
+    return;
+  }
+  for (const c of STATE.clients) {
+    const b = el("button", "cl-item" + (ui.client === c.id ? " on" : ""));
+    b.appendChild(el("span", "nm", c.name));
+    const g = gateCount(c);
+    if (g) b.appendChild(el("span", "badge", String(g)));
+    b.addEventListener("click", () => { ui.client = c.id; ui.job = null; ui.artifact = null; render(); });
+    list.appendChild(b);
+  }
+}
+
+function renderMain() {
+  const main = $("#main");
+  main.replaceChildren();
+  const c = STATE.clients.find((x) => x.id === ui.client) || STATE.clients[0];
+  if (!c) {
+    const e = el("div", "empty");
+    e.appendChild(el("h3", null, "No clients yet"));
+    e.appendChild(el("p", null, "Create your first client — all it takes is a name and their website. The first job, a website audit, runs on the URL alone."));
+    const b = el("button", "btn", "+ New client");
+    b.addEventListener("click", openNewClient);
+    e.appendChild(b);
+    main.appendChild(e);
+    return;
+  }
+  ui.client = c.id;
+
+  const crumb = el("div", "crumb", "clients / " + c.id);
+  main.appendChild(crumb);
+  const h = el("div", "h-row");
+  h.appendChild(el("h2", null, c.name));
+  h.appendChild(el("span", "sub", [c.website, "deliverables in " + c.language].filter(Boolean).join(" · ")));
+  main.appendChild(h);
+
+  // engagement map, in builds_on order
+  const order = ["website-audit", "growth-audit", "launch", "content-engine"];
+  const wfs = order.map((id) => STATE.workflows.find((w) => w.id === id)).filter(Boolean);
+  const map = el("div", "map");
+  wfs.forEach((wf, i) => {
+    if (i) { const l = el("div", "map-link"); l.textContent = "→"; map.appendChild(l); }
+    const job = c.jobs[wf.id];
+    const s = jobSummary(wf, job);
+    const card = el("button", "map-card" + (ui.job === wf.id ? " on" : "") + (s.cls === "gate" ? " gated" : ""));
+    card.appendChild(el("div", "t", wf.id));
+    const dots = el("div", "dots");
+    for (const ph of wf.phases) {
+      const st = job ? (job.phases[ph.id] || {}).status : undefined;
+      const d = el("span", "dot" +
+        (st === "done" ? " done" : st === "awaiting-gate" ? " gate" : st === "failed" ? " failed" : ""));
+      if (job && job.running && !st) d.className = "dot run";
+      dots.appendChild(d);
+    }
+    card.appendChild(dots);
+    card.appendChild(el("span", "chip " + s.cls, s.label));
+    card.addEventListener("click", () => { ui.job = wf.id; ui.artifact = null; render(); });
+    map.appendChild(card);
+  });
+  main.appendChild(map);
+
+  const wf = STATE.workflows.find((w) => w.id === ui.job);
+  if (!wf) {
+    // pick something useful by default: the first gated job, else first running, else guidance
+    const gated = wfs.find((w) => jobSummary(w, c.jobs[w.id]).cls === "gate");
+    if (gated) { ui.job = gated.id; return renderMain(); }
+    const running = wfs.find((w) => (c.jobs[w.id] || {}).running);
+    if (running) { ui.job = running.id; return renderMain(); }
+    const st = el("div", "starters");
+    for (const w of wfs) {
+      const card = el("div", "starter");
+      card.appendChild(el("b", null, w.id));
+      card.appendChild(el("p", null, w.description));
+      const b = el("button", "btn ghost", c.jobs[w.id] ? "Open" : "Start");
+      b.addEventListener("click", () => { ui.job = w.id; render(); });
+      card.appendChild(b);
+      st.appendChild(card);
+    }
+    main.appendChild(st);
+    return;
+  }
+  main.appendChild(renderJob(c, wf));
+  if (ui.artifact) main.appendChild(renderViewerShell(c, wf));
+}
+
+function renderJob(c, wf) {
+  const job = c.jobs[wf.id];
+  const s = jobSummary(wf, job);
+  const panel = el("section", "panel");
+
+  const head = el("div", "panel-head");
+  head.appendChild(el("h3", null, wf.name));
+  head.appendChild(el("span", "chip " + s.cls, s.label));
+  head.appendChild(el("div", "grow"));
+  const canRun = !job || (!job.running && s.cls !== "gate" && s.cls !== "done");
+  if (canRun) {
+    const b = el("button", "btn", job ? "Continue" : "Run");
+    b.addEventListener("click", async () => {
+      b.disabled = true;
+      try { await api("/api/run", { client: c.id, workflow: wf.id }); toast("Running — phases take a few minutes each."); }
+      catch (e) { toast(e.message); }
+      poll();
+    });
+    head.appendChild(b);
+  }
+  panel.appendChild(head);
+
+  const body = el("div", "panel-body");
+
+  if (s.cls === "gate" && s.gatePhase) {
+    const g = el("div", "gatebox");
+    g.appendChild(el("div", "lbl", "waiting for your decision — " + s.gatePhase.id));
+    g.appendChild(el("p", null, s.gatePhase.gate_text));
+    const open = el("button", "btn ghost", "Read " + s.gatePhase.produces);
+    open.addEventListener("click", () => { ui.artifact = s.gatePhase.produces; render(); });
+    const ta = el("textarea");
+    ta.placeholder = "To reject: say what to change, concretely. The phase is redone with your words folded in.";
+    const acts = el("div", "acts");
+    const ap = el("button", "btn gate", "Approve");
+    ap.addEventListener("click", async () => {
+      ap.disabled = true;
+      try { await api("/api/approve", { client: c.id, workflow: wf.id }); toast("Approved. Press Continue to run the next phase."); }
+      catch (e) { toast(e.message); }
+      poll();
+    });
+    const rj = el("button", "btn danger", "Reject with feedback");
+    rj.addEventListener("click", async () => {
+      if (!ta.value.trim()) { toast("Feedback is required to reject."); ta.focus(); return; }
+      rj.disabled = true;
+      try {
+        await api("/api/reject", { client: c.id, workflow: wf.id, feedback: ta.value.trim() });
+        await api("/api/run", { client: c.id, workflow: wf.id });
+        toast("Rejected — the phase is being redone with your feedback.");
+      } catch (e) { toast(e.message); }
+      poll();
+    });
+    acts.appendChild(ap); acts.appendChild(rj); acts.appendChild(open);
+    g.appendChild(acts); g.appendChild(ta);
+    body.appendChild(g);
+  }
+
+  // phase list
+  const phases = el("div", "phases");
+  for (const ph of wf.phases) {
+    const st = job ? (job.phases[ph.id] || {}).status : undefined;
+    const row = el("button", "ph");
+    const pin = el("span", "pin");
+    pin.style.background = st === "done" ? "var(--ok)" : st === "awaiting-gate" ? "var(--gate)"
+      : st === "failed" ? "var(--err)" : "var(--s-highest)";
+    row.appendChild(pin);
+    const nm = el("div", "nm");
+    nm.appendChild(el("b", null, ph.id + (ph.gate ? "  ⏸" : "")));
+    nm.appendChild(el("span", null, ph.agent + " → " + ph.produces));
+    row.appendChild(nm);
+    row.appendChild(el("span", "chip " + (st === "done" ? "done" : st === "awaiting-gate" ? "gate" : st === "failed" ? "failed" : "idle"),
+      st || "pending"));
+    const file = ph.produces.endsWith("/") ? null : ph.produces;
+    if (file && job && job.files.includes(file)) {
+      row.addEventListener("click", () => { ui.artifact = file; render(); });
+    } else {
+      row.style.cursor = "default";
+    }
+    phases.appendChild(row);
+  }
+  body.appendChild(phases);
+
+  // live log while running or after failure
+  if (job && (job.running || s.cls === "failed")) {
+    const logbox = el("div", "logbox", "…");
+    logbox.id = "logbox";
+    body.appendChild(logbox);
+    refreshLog(c.id, wf.id);
+  }
+
+  // extra deliverable files (04-assets/*)
+  const extra = (job ? job.files : []).filter((f) => f.includes("/"));
+  if (extra.length) {
+    const wrap = el("div", "phases");
+    for (const f of extra) {
+      const row = el("button", "ph");
+      row.appendChild(el("span", "pin"));
+      const nm = el("div", "nm");
+      nm.appendChild(el("b", null, f));
+      row.appendChild(nm);
+      row.appendChild(el("span", "chip done", "asset"));
+      row.addEventListener("click", () => { ui.artifact = f; render(); });
+      wrap.appendChild(row);
+    }
+    body.appendChild(wrap);
+  }
+
+  panel.appendChild(body);
+  return panel;
+}
+
+async function refreshLog(client, job) {
+  try {
+    const r = await api(`/api/log?client=${client}&job=${job}`);
+    const box = $("#logbox");
+    if (box) { box.textContent = r.log || "(waiting for output…)"; box.scrollTop = box.scrollHeight; }
+    if (r.running) setTimeout(() => refreshLog(client, job), 2500);
+  } catch (e) { /* panel re-rendered; drop */ }
+}
+
+function renderViewerShell(c, wf) {
+  const v = el("section", "viewer");
+  const head = el("div", "viewer-head");
+  head.appendChild(el("span", "f", "jobs/" + wf.id + "/" + ui.artifact));
+  const x = el("button", "btn ghost", "Close");
+  x.addEventListener("click", () => { ui.artifact = null; render(); });
+  head.appendChild(x);
+  v.appendChild(head);
+  const md = el("div", "md", "Loading…");
+  v.appendChild(md);
+  api(`/api/artifact?client=${c.id}&job=${wf.id}&file=${encodeURIComponent(ui.artifact)}`)
+    .then((r) => { md.innerHTML = renderMd(r.content); })
+    .catch((e) => { md.textContent = e.message; });
+  return v;
+}
+
+// ── new client modal ─────────────────────────────────────────
+const TOOLS = ["ga4", "google-search-console", "semrush", "ahrefs", "buffer", "mailchimp", "hubspot"];
+function openNewClient() {
+  ui.modal = true;
+  const ov = el("div", "overlay");
+  const m = el("div", "modal");
+  m.appendChild(el("h3", null, "New client"));
+  const mk = (label, id, ph, small) => {
+    const f = el("div", "field");
+    f.appendChild(el("label", null, label));
+    const inp = el("input"); inp.id = id; inp.placeholder = ph || "";
+    f.appendChild(inp);
+    if (small) f.appendChild(el("small", null, small));
+    return f;
+  };
+  m.appendChild(mk("Short id", "f-id", "acme", "lowercase, digits and dashes — becomes the folder name"));
+  m.appendChild(mk("Name", "f-name", "ACME Inc."));
+  m.appendChild(mk("Website", "f-web", "https://…", "Required for the website audit — the only job that runs with no internal data"));
+  const langF = el("div", "field");
+  langF.appendChild(el("label", null, "Deliverable language"));
+  const sel = el("select"); sel.id = "f-lang";
+  ["English", "Spanish", "Portuguese"].forEach((l) => { const o = el("option", null, l); o.value = l; sel.appendChild(o); });
+  langF.appendChild(sel);
+  langF.appendChild(el("small", null, "What the client reads — the system itself works in English"));
+  m.appendChild(langF);
+  m.appendChild(mk("What business are they in", "f-biz", "one line"));
+  m.appendChild(mk("Who do they sell to", "f-icp", "leave empty if unknown — the audit flags it, and that is usually THE finding"));
+  const tf = el("div", "field");
+  tf.appendChild(el("label", null, "Connected tools"));
+  tf.appendChild(el("small", null, "Only the ones with a REAL credential. Listing one without it is worse than leaving it out."));
+  const grid = el("div", "tools-grid");
+  TOOLS.forEach((t) => {
+    const lab = el("label");
+    const cb = el("input"); cb.type = "checkbox"; cb.value = t;
+    lab.appendChild(cb); lab.appendChild(document.createTextNode(t));
+    grid.appendChild(lab);
+  });
+  tf.appendChild(grid);
+  m.appendChild(tf);
+  const err = el("div", "err-msg"); m.appendChild(err);
+  const acts = el("div", "acts");
+  const cancel = el("button", "btn ghost", "Cancel");
+  cancel.addEventListener("click", () => { ov.remove(); ui.modal = false; render(); });
+  const create = el("button", "btn", "Create client");
+  create.addEventListener("click", async () => {
+    create.disabled = true; err.textContent = "";
+    try {
+      const r = await api("/api/client", {
+        id: $("#f-id").value.trim(), name: $("#f-name").value.trim(),
+        website: $("#f-web").value.trim(), language: $("#f-lang").value,
+        business: $("#f-biz").value.trim(), icp: $("#f-icp").value.trim(),
+        tools: [...grid.querySelectorAll("input:checked")].map((x) => x.value),
+      });
+      ov.remove(); ui.modal = false; ui.client = r.id; ui.job = null;
+      toast("Client created. Start with the website audit.");
+      poll();
+    } catch (e) { err.textContent = e.message; create.disabled = false; }
+  });
+  acts.appendChild(cancel); acts.appendChild(create);
+  m.appendChild(acts);
+  ov.appendChild(m);
+  ov.addEventListener("click", (ev) => { if (ev.target === ov) { ov.remove(); ui.modal = false; render(); } });
+  document.body.appendChild(ov);
+  $("#f-id").focus();
+}
+$("#btn-new").addEventListener("click", openNewClient);
+
+// ── poll loop ────────────────────────────────────────────────
+async function poll() {
+  try {
+    const s = await api("/api/state");
+    const j = JSON.stringify(s);
+    if (j !== ui.lastJSON) { ui.lastJSON = j; STATE = s; render(); }
+  } catch (e) { /* server briefly away; retry */ }
+}
+poll();
+setInterval(poll, 3000);
+</script>
+</body>
+</html>

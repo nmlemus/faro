@@ -1,0 +1,13 @@
+services:
+  agency:
+    build: .
+    ports:
+      - "4747:4747"
+    environment:
+      # Claude Code inside the container authenticates with this. Set it in
+      # your shell or a .env file next to this compose file.
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      # Client data lives on the host, not in the image: containers come and
+      # go, accounts do not.
+      - ./clients:/agency/clients

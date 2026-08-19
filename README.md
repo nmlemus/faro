@@ -15,6 +15,10 @@ running `agency setup`.
 
 ## Getting started
 
+Requires Python 3.10+ with PyYAML (`pip install -r requirements.txt`), git, and the
+Claude Code CLI (`claude`) logged in.
+
+
 ```sh
 ./bin/agency setup                   # vendor the pinned methods from method.yaml
 ./bin/agency doctor                  # check it composes (no model, no tokens)
@@ -38,6 +42,34 @@ non-interactive path, which exists so the interview does not silently take every
 Before starting a job, `run` preflights: if what the first phase needs is missing (the site
 for `website-audit`, files in `data/` for `growth-audit`), it fails there instead of spending
 minutes and tokens producing a hollow deliverable.
+
+## The web console — no terminal required
+
+```sh
+./bin/agency serve            # → http://127.0.0.1:4747
+```
+
+One command, then everything happens in the browser: create clients, start jobs, watch
+phases progress live, read every deliverable rendered, and decide at each gate —
+approve, or reject with feedback that gets folded into the redo. The amber badge next
+to a client means a job is waiting on you.
+
+The console is a thin layer over the same runner: it launches the exact same commands,
+so anything done in the UI and anything done in the terminal see the same state.
+
+### Docker — the whole agency in one container
+
+```sh
+export ANTHROPIC_API_KEY=sk-ant-…   # Claude Code inside the container uses this
+docker compose up --build           # → http://localhost:4747
+```
+
+Claude Code runs *inside* the container, which is also the sandbox story:
+`bypassPermissions` is scoped to the container, not your machine. Client data is
+mounted from `./clients` on the host, so containers are disposable and accounts are
+not. *(The Dockerfile is written and reviewed but not yet built on this machine —
+the Docker daemon was not running. Test `docker compose up --build` before relying
+on it.)*
 
 ## The two modes
 

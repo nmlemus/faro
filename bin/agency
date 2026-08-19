@@ -20,6 +20,7 @@ The SYSTEM is in English. The DELIVERABLES ship in the client's language
     agency reject <client> <wf> "..."  reject the gate: the phase is redone with your feedback
     agency ask <client> "<request>"    no workflow: the model plans, using OUR skills only
     agency status <client>             where each job stands
+    agency serve [--port 4747]         local web UI: run jobs, read artifacts, approve gates
 """
 import json
 import os
@@ -866,10 +867,253 @@ def cmd_status(args):
             print(f"  {mark} {p['id']:<18} {st:<14} {p['produces']}")
 
 
+
+
+# -- the local web UI ---------------------------------------------------------
+# `agency serve` runs a local server so nobody has to touch the terminal after
+# this one command. Stdlib only, on purpose: the runner's dependency footprint
+# stays PyYAML and nothing else. Binds to 127.0.0.1 unless told otherwise.
+
+def cmd_serve(args):
+    import http.server
+    import threading
+    import urllib.parse
+
+    host, port = "127.0.0.1", 4747
+    i = 0
+    while i < len(args):
+        if args[i] == "--port" and i + 1 < len(args):
+            port = int(args[i + 1]); i += 2
+        elif args[i] == "--host" and i + 1 < len(args):
+            host = args[i + 1]; i += 2
+        else:
+            i += 1
+
+    app_file = ROOT / "web" / "app.html"
+    if not app_file.is_file():
+        die("web/app.html is missing — the UI ships with the repo")
+
+    runs = {}          # (client, wf) -> subprocess.Popen
+    runs_lock = threading.Lock()
+
+    def is_running(client, wid):
+        with runs_lock:
+            proc = runs.get((client, wid))
+            return proc is not None and proc.poll() is None
+
+    def job_files(jd):
+        """Deliverable files of a job: top-level .md plus one level of subdirs
+        (a workflow may deliver a directory, e.g. 04-assets/)."""
+        out = []
+        if not jd.is_dir():
+            return out
+        for f in sorted(jd.glob("*.md")):
+            if not f.name.startswith("."):
+                out.append(f.name)
+        for d in sorted(jd.iterdir()):
+            if d.is_dir():
+                for f in sorted(d.glob("*.md")):
+                    out.append(f"{d.name}/{f.name}")
+        return out
+
+    def state_payload():
+        wfs = workflows()
+        ags = agents()
+        payload = {
+            "workflows": [
+                {"id": w["id"], "name": w["name"], "description": w["description"],
+                 "deliverable": w["deliverable"], "builds_on": w.get("builds_on", []),
+                 "phases": [{"id": ph["id"], "agent": ph["agent"],
+                             "produces": ph["produces"], "gate": bool(ph.get("gate")),
+                             "gate_text": (ph.get("gate") or "").strip()}
+                            for ph in w["phases"]]}
+                for w in wfs.values()
+            ],
+            "agents": {a["id"]: {"name": a["name"], "role": a["role"],
+                                 "skills": len(a.get("skills", []))}
+                       for a in ags.values()},
+            "clients": [],
+        }
+        cdirs = ROOT / "clients"
+        if cdirs.is_dir():
+            for d in sorted(cdirs.iterdir()):
+                if not d.is_dir() or d.name.startswith("_"):
+                    continue
+                cfg = yaml.safe_load(read_if(d / "client.yaml")) or {}
+                jobs = {}
+                for wid in wfs:
+                    st = load_state(d.name, wid)
+                    jd = job_dir(d.name, wid)
+                    if not st["phases"] and not jd.is_dir():
+                        continue
+                    jobs[wid] = {
+                        "phases": st["phases"],
+                        "running": is_running(d.name, wid),
+                        "files": job_files(jd),
+                    }
+                payload["clients"].append({
+                    "id": d.name, "name": cfg.get("name", d.name),
+                    "website": cfg.get("website", ""),
+                    "language": cfg.get("language", "English"),
+                    "business": cfg.get("business", ""), "icp": cfg.get("icp", ""),
+                    "knowledge": [f.name for f in sorted((d / "knowledge").glob("*.md"))
+                                  if f.name != "README.md"] if (d / "knowledge").is_dir() else [],
+                    "jobs": jobs,
+                })
+        return payload
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *a):  # keep the terminal quiet
+            pass
+
+        def _json(self, obj, code=200):
+            body = json.dumps(obj).encode("utf8")
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _bad(self, msg, code=400):
+            self._json({"error": msg}, code)
+
+        def _read_body(self):
+            n = int(self.headers.get("Content-Length") or 0)
+            try:
+                return json.loads(self.rfile.read(n) or b"{}")
+            except json.JSONDecodeError:
+                return None
+
+        def _job_path(self, q):
+            client = q.get("client", [""])[0]
+            wid = q.get("job", [""])[0]
+            if not re.fullmatch(r"[a-z0-9-]+", client or "") or not re.fullmatch(r"[a-z0-9-]+", wid or ""):
+                return None, None, None
+            return client, wid, job_dir(client, wid)
+
+        def do_GET(self):
+            url = urllib.parse.urlparse(self.path)
+            q = urllib.parse.parse_qs(url.query)
+            if url.path in ("/", "/index.html"):
+                body = app_file.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            elif url.path == "/api/state":
+                self._json(state_payload())
+            elif url.path == "/api/artifact":
+                client, wid, jd = self._job_path(q)
+                fname = q.get("file", [""])[0]
+                if jd is None or not fname:
+                    return self._bad("client, job and file are required")
+                f = (jd / fname).resolve()
+                # stay inside the job dir, .md only, no dotfiles
+                if not str(f).startswith(str(jd.resolve()) + os.sep) or f.suffix != ".md" \
+                        or f.name.startswith("."):
+                    return self._bad("not a job artifact", 403)
+                if not f.is_file():
+                    return self._bad("no such artifact", 404)
+                self._json({"file": fname, "content": f.read_text(encoding="utf8")})
+            elif url.path == "/api/log":
+                client, wid, jd = self._job_path(q)
+                if jd is None:
+                    return self._bad("client and job are required")
+                log = jd / "run.log"
+                tail = ""
+                if log.is_file():
+                    tail = log.read_text(encoding="utf8", errors="replace")[-4000:]
+                self._json({"running": is_running(client, wid), "log": tail})
+            else:
+                self._bad("no such endpoint", 404)
+
+        def do_POST(self):
+            url = urllib.parse.urlparse(self.path)
+            body = self._read_body()
+            if body is None:
+                return self._bad("invalid JSON body")
+            client = body.get("client", "")
+            wid = body.get("workflow", "")
+
+            if url.path == "/api/run":
+                if not (ROOT / "clients" / client).is_dir():
+                    return self._bad("no such client", 404)
+                if wid not in workflows():
+                    return self._bad("no such workflow", 404)
+                if is_running(client, wid):
+                    return self._bad("this job is already running", 409)
+                jd = job_dir(client, wid)
+                jd.mkdir(parents=True, exist_ok=True)
+                log = open(jd / "run.log", "w", encoding="utf8")
+                proc = subprocess.Popen(
+                    [sys.executable, str(Path(__file__).resolve()), "run", client, wid],
+                    stdout=log, stderr=subprocess.STDOUT,
+                    env={**os.environ, "NO_COLOR": "1"},
+                )
+                with runs_lock:
+                    runs[(client, wid)] = proc
+                self._json({"ok": True})
+
+            elif url.path == "/api/approve":
+                state, pid = _gate_phase(client, wid)
+                if not pid:
+                    return self._bad("no gate is waiting for approval", 409)
+                state["phases"][pid] = {**state["phases"][pid], "status": "done",
+                                        "approved_at": now()}
+                save_state(client, wid, state)
+                self._json({"ok": True, "phase": pid})
+
+            elif url.path == "/api/reject":
+                feedback = (body.get("feedback") or "").strip()
+                if not feedback:
+                    return self._bad("feedback is required — a rejection without it just re-rolls the dice")
+                state, pid = _gate_phase(client, wid)
+                if not pid:
+                    return self._bad("no gate is waiting for approval", 409)
+                state["phases"][pid] = {"status": "pending", "feedback": feedback,
+                                        "rejected_at": now()}
+                save_state(client, wid, state)
+                self._json({"ok": True, "phase": pid})
+
+            elif url.path == "/api/client":
+                cid = (body.get("id") or "").strip()
+                if not re.fullmatch(r"[a-z0-9-]{2,40}", cid):
+                    return self._bad("id must be 2-40 chars of a-z, 0-9 and dashes")
+                dst = ROOT / "clients" / cid
+                if dst.exists():
+                    return self._bad("that client already exists", 409)
+                c = empty_client(cid)
+                for k in ("name", "website", "language", "business", "icp", "cadence"):
+                    if body.get(k):
+                        c[k] = str(body[k]).strip()
+                chosen = set(body.get("tools") or [])
+                c["tools"] = {k: (k in chosen) for k in COMMON_TOOLS}
+                shutil.copytree(ROOT / "clients" / "_template", dst)
+                (dst / "client.yaml").write_text(client_yaml_text(c), encoding="utf8")
+                if c["website"]:
+                    (dst / "brand.md").write_text(
+                        BRAND_TEMPLATE.format(name=c["name"], website=c["website"]),
+                        encoding="utf8")
+                self._json({"ok": True, "id": cid})
+
+            else:
+                self._bad("no such endpoint", 404)
+
+    server = http.server.ThreadingHTTPServer((host, port), Handler)
+    ok(f"agency UI at http://{host}:{port}")
+    gray("  Ctrl-C stops it. Jobs launched from the UI keep running in the background.")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print()
+        gray("stopped")
+
+
 COMMANDS = {
     "setup": cmd_setup, "doctor": cmd_doctor, "clients": cmd_clients, "new": cmd_new,
     "edit": cmd_edit, "workflows": cmd_workflows, "run": cmd_run, "approve": cmd_approve,
-    "reject": cmd_reject, "ask": cmd_ask, "status": cmd_status,
+    "reject": cmd_reject, "ask": cmd_ask, "status": cmd_status, "serve": cmd_serve,
 }
 
 if __name__ == "__main__":

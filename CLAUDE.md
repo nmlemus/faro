@@ -51,6 +51,9 @@ Run `approve` only when the user explicitly asks. If they want changes, use
 ./bin/agency ask <client> "<request>"    # no workflow: the model plans
 ```
 
+There is also a web console: `./bin/agency serve` → http://127.0.0.1:4747. If the user
+prefers clicking to typing, point them there — it drives the same runner and state.
+
 Phases take minutes. Run `run` **in the background** and report when it finishes, instead of
 blocking the conversation.
 
