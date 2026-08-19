@@ -1,0 +1,34 @@
+# Client file. Everything here is injected into EVERY phase.
+# Editable with: agency edit ejemplo
+id: ejemplo
+name: Example Client
+
+# The client's site. For `website-audit` this is the ONLY required source.
+website: ""
+
+# Language the DELIVERABLE ships in (not the language the system works in).
+language: English
+
+# What business they are in, one line. Every agent reads this before working.
+business: ""
+
+# Who they sell to. Empty is a valid answer: the audit flags it as a finding.
+icp: ""
+
+# Cadence for the content engine (e.g. "4 weeks", "2 posts per week").
+cadence: "4 weeks"
+
+# Connected tools. An agent uses a CLI ONLY if it is true here. If false, the data point is
+# declared as a hole rather than invented. Setting one true WITHOUT a real credential is
+# worse than leaving it false: the phase fails instead of declaring cleanly.
+tools:
+  ga4: false
+  google-search-console: false
+  semrush: false
+  ahrefs: false
+  buffer: false
+  mailchimp: false
+  hubspot: false
+
+# Names of the environment variables holding the credentials. NEVER the value.
+credentials_env: []

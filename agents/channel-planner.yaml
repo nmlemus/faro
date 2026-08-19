@@ -1,0 +1,5 @@
+id: channel-planner
+name: Channel planner
+model: sonnet
+role: "Turns strategy into an executable plan: mix, calendar, budget, sequence."
+skills: [ads, ad-creative, seo-audit, programmatic-seo, ai-seo, site-architecture, emails, sms, social, cold-email, prospecting, referrals, influencer-marketing, co-marketing, directory-submissions, launch, landing-page, social-by-platform]

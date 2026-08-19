@@ -1,0 +1,879 @@
+#!/usr/bin/env python3
+"""agency — an AI-operated marketing agency, with the method as data.
+
+The skills are third-party, vendored and pinned (declared in method.yaml). What is ours is
+what was missing on top: personas, gated workflows, per-client memory, and this runner.
+
+The SYSTEM is in English. The DELIVERABLES ship in the client's language
+(`client.yaml -> language`).
+
+    agency setup                       vendor the pinned methods from method.yaml
+    agency doctor                      check the method composes (no model, no tokens)
+    agency clients                     list clients
+    agency new <id>                    create a client — it interviews you, no YAML editing
+    agency edit <client>               change a client's file (same interview)
+      ...both accept `--set key=value` for non-interactive use (scripts / Claude Code):
+      agency new yomap --set name=YoMap --set website=https://yomap.me --set tools=ga4
+    agency workflows                   list the workflows
+    agency run <client> <workflow>     run the next pending phase, stop at the gate
+    agency approve <client> <wf>       approve the current gate, unblock the next phase
+    agency reject <client> <wf> "..."  reject the gate: the phase is redone with your feedback
+    agency ask <client> "<request>"    no workflow: the model plans, using OUR skills only
+    agency status <client>             where each job stands
+"""
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+try:
+    import yaml
+except ModuleNotFoundError:
+    sys.stderr.write("agency: PyYAML is missing. Install it with:  pip install -r requirements.txt\n")
+    sys.exit(1)
+
+ROOT = Path(__file__).resolve().parent.parent
+VENDOR = ROOT / ".vendor"
+METHOD_FILE = ROOT / "method.yaml"
+CLAUDE = os.environ.get("AGENCY_CLAUDE", "claude")
+MODEL = os.environ.get("AGENCY_MODEL", "sonnet")
+PERMISSION_MODE = os.environ.get("AGENCY_PERMISSION_MODE", "bypassPermissions")
+
+# Colour only when it makes sense. `NO_COLOR` is the de facto standard for turning it off,
+# and without a tty (pipe, log, CI) it goes off too.
+_COLOR = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+C_RED = "\033[31m" if _COLOR else ""
+C_GREEN = "\033[32m" if _COLOR else ""
+C_YELLOW = "\033[33m" if _COLOR else ""
+C_OFF = "\033[0m" if _COLOR else ""
+# Detail lines are PLAIN TEXT on purpose: dim grey (90) vanishes on several terminal
+# themes, and the detail is precisely what has to stay readable.
+C_GRAY = ""
+
+
+def die(msg):
+    print(f"{C_RED}x {msg}{C_OFF}", file=sys.stderr)
+    sys.exit(1)
+
+
+def ok(msg):
+    print(f"{C_GREEN}✓ {msg}{C_OFF}")
+
+
+def gray(msg):
+    print(f"{C_GRAY}{msg}{C_OFF}")
+
+
+def now():
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def read_if(path):
+    return path.read_text(encoding="utf8") if path.is_file() else ""
+
+
+# -- the skill catalog --------------------------------------------------------
+
+def methods():
+    """The external methods declared in method.yaml. This is THE source of truth for what
+    bodies of knowledge the agency mounts — switching vertical means changing that file,
+    not this code."""
+    if not METHOD_FILE.is_file():
+        die(f"{METHOD_FILE} is missing. With no declared method the agency has nothing to mount.")
+    spec = yaml.safe_load(METHOD_FILE.read_text(encoding="utf8")) or {}
+    out = []
+    for m in spec.get("methods", []):
+        for k in ("id", "repo", "ref", "skills_dir"):
+            if k not in m:
+                die(f"method.yaml: method '{m.get('id', '?')}' is missing '{k}'")
+        m = dict(m)
+        m["dir"] = VENDOR / f"{m['id']}-{m['ref']}"
+        out.append(m)
+    return out
+
+
+def tool_dirs():
+    """The tool directories the methods contribute (CLIs, integration guides)."""
+    return [m["dir"] / m["tools_dir"] for m in methods()
+            if m.get("tools_dir") and (m["dir"] / m["tools_dir"]).is_dir()]
+
+
+def skill_roots():
+    """Skill roots, in order: vendored methods first, our own last. An own skill with the
+    same name SHADOWS the vendored one — that way a third-party method can be corrected or
+    localised without touching the vendor or losing the pin."""
+    roots = []
+    for m in methods():
+        r = m["dir"] / m["skills_dir"]
+        if r.is_dir():
+            roots.append(r)
+    if (ROOT / "skills").is_dir():
+        roots.append(ROOT / "skills")
+    return roots
+
+
+def skill_catalog():
+    """{name: (description, path)} of every available skill. This is THE source of truth
+    for what the agency can use — nothing outside it enters a job."""
+    roots = skill_roots()
+    if not roots:
+        die("no skills on disk. Run: agency setup")
+    catalog = {}
+    for root in roots:
+        for d in sorted(root.iterdir()):
+            f = d / "SKILL.md"
+            if not f.is_file():
+                continue
+            head = f.read_text(encoding="utf8")[:4000]
+            m = re.search(r"^description:\s*(.+?)(?=^\w+:|^---)", head, re.M | re.S)
+            desc = " ".join(m.group(1).split()).strip("\"'") if m else ""
+            catalog[d.name] = (desc, d)
+    return catalog
+
+
+def agents():
+    out = {}
+    for f in sorted((ROOT / "agents").glob("*.yaml")):
+        spec = yaml.safe_load(f.read_text(encoding="utf8"))
+        spec["persona"] = f.with_suffix(".md").read_text(encoding="utf8")
+        out[spec["id"]] = spec
+    return out
+
+
+def workflows():
+    out = {}
+    for f in sorted((ROOT / "workflows").glob("*.yaml")):
+        wf = yaml.safe_load(f.read_text(encoding="utf8"))
+        out[wf["id"]] = wf
+    return out
+
+
+# -- job state ----------------------------------------------------------------
+
+def job_dir(client, wf_id):
+    return ROOT / "clients" / client / "jobs" / wf_id
+
+
+def load_state(client, wf_id):
+    f = job_dir(client, wf_id) / "state.json"
+    return json.loads(f.read_text(encoding="utf8")) if f.is_file() else {"phases": {}}
+
+
+def save_state(client, wf_id, state):
+    d = job_dir(client, wf_id)
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "state.json").write_text(json.dumps(state, indent=2, ensure_ascii=False), encoding="utf8")
+
+
+# -- building a phase prompt --------------------------------------------------
+
+def tools_block():
+    """The prompt's tools section, assembled from methods that declare a tools_dir. If no
+    method contributes tools, nothing is mentioned."""
+    parts = []
+    for d in tool_dirs():
+        clis = sorted((d / "clis").glob("*.js"))
+        if not clis:
+            continue
+        names = ", ".join(c.stem for c in clis[:8])
+        parts.append(
+            f"- {len(clis)} zero-dependency CLIs in `{d / 'clis'}` ({names}...)"
+            + (f", with guides in `{d / 'integrations'}`" if (d / "integrations").is_dir() else "")
+        )
+    if not parts:
+        return ""
+    return ("\n\n# Connectable tools\n\n" + "\n".join(parts) +
+            "\n\nUse them ONLY if `client.yaml -> tools` declares the credential exists. "
+            "Otherwise the data point is declared as a hole rather than estimated.")
+
+
+def knowledge_block(cdir):
+    """Approved deliverables from past jobs. This is the account's memory: it is what makes
+    job N+1 better than job N."""
+    out = ""
+    kdir = cdir / "knowledge"
+    if not kdir.is_dir():
+        return out
+    for f in sorted(kdir.glob("*.md")):
+        if f.name == "README.md":   # folder instructions, not client knowledge
+            continue
+        out += f"\n\n===== knowledge/{f.name} =====\n{f.read_text(encoding='utf8')}"
+    return out
+
+
+def prior_jobs_block(cdir, wf):
+    """What OTHER jobs for this client already produced.
+
+    Two levels, on purpose:
+      - `builds_on:` in the workflow declares which jobs it genuinely depends on. Those
+        deliverables are injected IN FULL — the phase must not contradict them.
+      - Every other finished job is listed by path. Bounded prompt, but nothing hidden: the
+        model can Read them if they turn out to be relevant.
+
+    Without this, running `launch` after `website-audit` produces a positioning blind to the
+    audit that was just paid for. That is the whole point of an engagement compounding.
+    """
+    jobs = cdir / "jobs"
+    if not jobs.is_dir():
+        return ""
+    wfs = workflows()
+    builds_on = wf.get("builds_on") or []
+
+    injected, listed = "", []
+    for j in sorted(jobs.iterdir()):
+        if not j.is_dir() or j.name == wf["id"]:
+            continue
+        other = wfs.get(j.name)
+        if other is None:                       # ad-hoc job
+            for f in sorted(j.glob("*.md")):
+                listed.append(f"- `{f}` (ad-hoc)")
+            continue
+        deliverable = j / other["deliverable"]
+        if not deliverable.exists():
+            continue
+        if j.name in builds_on and deliverable.is_file():
+            injected += (f"\n\n===== {j.name} -> {other['deliverable']} =====\n"
+                         f"{deliverable.read_text(encoding='utf8')}")
+        else:
+            listed.append(f"- `{deliverable}` — deliverable of the '{other['name']}' job")
+
+    if not injected and not listed:
+        return ""
+    out = "\n\n# Previous work for this client\n"
+    if injected:
+        out += ("\nThis phase **builds on** the work below. Do not contradict it: if you "
+                "believe it is wrong, say so explicitly and explain why, rather than quietly "
+                "ignoring it.\n" + injected)
+    if listed:
+        out += ("\n\nAlso available, not injected — Read them if relevant to this phase:\n"
+                + "\n".join(listed))
+    return out
+
+
+def build_prompt(client, wf, phase, jd, feedback=None):
+    cdir = ROOT / "clients" / client
+    cfg = yaml.safe_load(read_if(cdir / "client.yaml")) or {}
+    catalog = skill_catalog()
+    ag = agents()[phase["agent"]]
+    language = cfg.get("language") or "English"
+
+    # the catalog this agent is allowed to use: its own, resolved against the real catalog
+    mine = [s for s in ag.get("skills", []) if s in catalog]
+    lines = [f"- `{s}` — {catalog[s][0]}\n  -> `{catalog[s][1] / 'SKILL.md'}`" for s in mine]
+
+    prior = ""
+    for req in phase.get("requires", []):
+        body = read_if(jd / req)
+        if body:
+            prior += f"\n\n===== {req} =====\n{body}"
+
+    fb = (f"\n\n## Feedback from the previous gate — REDO this phase addressing it\n\n{feedback}\n"
+          if feedback else "")
+
+    return f"""{read_if(ROOT / 'AGENCY.md')}
+
+# Client: {cfg.get('name', client)}
+
+**Deliverable language: {language}.** You think and work in English; what you write into the
+artifact ships in {language}. That is house rule 4 and it is not optional.
+
+===== client.yaml =====
+{read_if(cdir / 'client.yaml')}
+
+===== brand.md =====
+{read_if(cdir / 'brand.md')}
+{knowledge_block(cdir)}
+{prior_jobs_block(cdir, wf)}
+
+# Your skills
+
+These are the methods available to you. Before working, **read the ones that apply** with
+the Read tool from the path shown under each, and follow their instructions. Name in the
+deliverable which one you used.
+
+{chr(10).join(lines)}
+
+{tools_block()}
+
+# Job: {wf['name']} — phase `{phase['id']}`
+{prior}
+{fb}
+## Your task
+
+{phase['task']}
+
+## How this phase closes
+
+Write the result to **`{jd / phase['produces']}`**. That file is the phase's deliverable: it
+does not exist until it is on disk. Do not answer with the content in chat — write it to the
+file. When you are done, reply in two or three lines with what you did and what was declared
+as a hole.
+"""
+
+
+# -- commands -----------------------------------------------------------------
+
+def cmd_setup(args):
+    VENDOR.mkdir(exist_ok=True)
+    for m in methods():
+        if m["dir"].is_dir():
+            gray(f"'{m['id']}' already vendored @ {m['ref']}")
+            continue
+        gray(f"cloning {m['repo']} @ {m['ref']}")
+        r = subprocess.run(["git", "clone", "--depth", "1", "--branch", m["ref"],
+                            m["repo"], str(m["dir"])], capture_output=True, text=True)
+        if r.returncode != 0:
+            die(f"could not clone '{m['id']}':\n{r.stderr[-500:]}")
+        if not (m["dir"] / m["skills_dir"]).is_dir():
+            die(f"'{m['id']}' ships no '{m['skills_dir']}/' — check method.yaml")
+    cat = skill_catalog()
+    own = len([d for d in (ROOT / "skills").iterdir() if (d / "SKILL.md").is_file()]) if (ROOT / "skills").is_dir() else 0
+    ok(f"{len(cat)} skills available ({len(cat) - own} from methods + {own} own)")
+    for d in tool_dirs():
+        n = len(list((d / "clis").glob("*.js")))
+        if n:
+            gray(f"  + {n} CLIs in {d.relative_to(ROOT)}/clis")
+
+
+def cmd_doctor(args):
+    """Checks that the method composes. No model call, no tokens spent."""
+    fails = 0
+    for m in methods():
+        r = m["dir"] / m["skills_dir"]
+        if not r.is_dir():
+            print(f"{C_RED}  x method '{m['id']}' @ {m['ref']} is not vendored. Run: agency setup{C_OFF}")
+            fails += 1
+        else:
+            n = len([d for d in r.iterdir() if (d / "SKILL.md").is_file()])
+            gray(f"  ✓ method {m['id']} @ {m['ref']}: {n} skills")
+
+    # names shadowed across roots: the last one wins, but say so
+    seen, shadowed = {}, []
+    for root in skill_roots():
+        for d in sorted(root.iterdir()):
+            if not (d / "SKILL.md").is_file():
+                continue
+            if d.name in seen:
+                shadowed.append((d.name, seen[d.name], root))
+            seen[d.name] = root
+    for name, old, new in shadowed:
+        print(f"{C_YELLOW}  ! '{name}' from {old.parent.name} is shadowed by {new.parent.name}{C_OFF}")
+
+    cat = skill_catalog()
+    own = len([d for d in (ROOT / "skills").iterdir() if (d / "SKILL.md").is_file()]) if (ROOT / "skills").is_dir() else 0
+    ok(f"catalog: {len(cat)} skills ({len(cat) - own} from methods + {own} own)")
+
+    if not shutil.which(CLAUDE):
+        print(f"{C_RED}  x executable '{CLAUDE}' not found{C_OFF}")
+        fails += 1
+    else:
+        gray(f"  ✓ executor: {CLAUDE}")
+
+    ags = agents()
+    for aid, a in sorted(ags.items()):
+        missing = [s for s in a.get("skills", []) if s not in cat]
+        if missing:
+            print(f"{C_RED}  x agent {aid}: skills that do not exist {missing}{C_OFF}")
+            fails += 1
+        else:
+            gray(f"  ✓ agent {aid}: {len(a.get('skills', []))} skills")
+
+    for wid, wf in sorted(workflows().items()):
+        gated = sum(1 for p in wf["phases"] if p.get("gate"))
+        bad = [p["agent"] for p in wf["phases"] if p["agent"] not in ags]
+        produced = {p["produces"] for p in wf["phases"]}
+        dangling = [r for p in wf["phases"] for r in p.get("requires", []) if r not in produced]
+        unknown_deps = [b for b in (wf.get("builds_on") or []) if b not in workflows()]
+        if unknown_deps:
+            print(f"{C_RED}  x workflow {wid}: builds_on points at workflows that do not exist {unknown_deps}{C_OFF}")
+            fails += 1
+        elif bad:
+            print(f"{C_RED}  x workflow {wid}: agents that do not exist {bad}{C_OFF}")
+            fails += 1
+        elif dangling:
+            print(f"{C_RED}  x workflow {wid}: requires artifacts nobody produces {dangling}{C_OFF}")
+            fails += 1
+        else:
+            dep = f", builds on {', '.join(wf['builds_on'])}" if wf.get("builds_on") else ""
+            gray(f"  ✓ workflow {wid}: {len(wf['phases'])} phases, {gated} gates{dep}")
+
+    if fails:
+        die(f"{fails} problem(s). The method does NOT compose.")
+    ok("the method composes")
+
+
+def cmd_clients(args):
+    d = ROOT / "clients"
+    found = [p for p in sorted(d.iterdir()) if p.is_dir() and not p.name.startswith("_")] if d.is_dir() else []
+    if not found:
+        print("No clients yet. Create one:  agency new <id>")
+        return
+    print(f"Clients in {d}:")
+    for p in found:
+        cfg = yaml.safe_load(read_if(p / "client.yaml")) or {}
+        jobs = [j.name for j in (p / "jobs").iterdir() if j.is_dir()] if (p / "jobs").is_dir() else []
+        print(f"  {p.name:<18} {cfg.get('name', ''):<32} {len(jobs)} job(s)")
+
+
+# The tools asked about at intake. Not every tool that exists: the ones that change what a
+# job is allowed to claim. The rest can be added later with `agency edit`.
+COMMON_TOOLS = ["ga4", "google-search-console", "semrush", "ahrefs", "buffer",
+                "mailchimp", "hubspot"]
+
+
+def ask(label, default="", note=""):
+    """One question. Enter accepts the default. With no interactive stdin it takes the
+    default — so the same code serves a human intake and a script."""
+    if note:
+        print(f"  {note}")
+    suffix = f" [{default}]" if default else ""
+    try:
+        r = input(f"  {label}{suffix}: ").strip()
+    except EOFError:
+        print("(no input, using the default)")
+        return default
+    return r or default
+
+
+def client_yaml_text(c):
+    """Emits client.yaml WITH its comments. yaml.dump is not used because it eats them, and
+    the comments are half the file's documentation."""
+    tools = "\n".join(f"  {k}: {'true' if v else 'false'}" for k, v in c["tools"].items())
+    if c["credentials_env"]:
+        creds = "credentials_env:\n" + "\n".join(f"  - {v}" for v in c["credentials_env"])
+    else:
+        creds = "credentials_env: []"
+    return f"""# Client file. Everything here is injected into EVERY phase.
+# Editable with: agency edit {c['id']}
+id: {c['id']}
+name: {c['name']}
+
+# The client's site. For `website-audit` this is the ONLY required source.
+website: "{c['website']}"
+
+# Language the DELIVERABLE ships in (not the language the system works in).
+language: {c['language']}
+
+# What business they are in, one line. Every agent reads this before working.
+business: "{c['business']}"
+
+# Who they sell to. Empty is a valid answer: the audit flags it as a finding.
+icp: "{c['icp']}"
+
+# Cadence for the content engine (e.g. "4 weeks", "2 posts per week").
+cadence: "{c['cadence']}"
+
+# Connected tools. An agent uses a CLI ONLY if it is true here. If false, the data point is
+# declared as a hole rather than invented. Setting one true WITHOUT a real credential is
+# worse than leaving it false: the phase fails instead of declaring cleanly.
+tools:
+{tools}
+
+# Names of the environment variables holding the credentials. NEVER the value.
+{creds}
+"""
+
+
+def interview(c):
+    """The intake interview. Each question states the consequence of the answer."""
+    print()
+    c["name"] = ask("Client name", c["name"])
+    c["website"] = ask("Website", c["website"],
+                       "Required for website-audit, the only job that runs with no internal data.")
+    c["language"] = ask("Deliverable language", c["language"])
+    c["business"] = ask("What business are they in (one line)", c["business"])
+    c["icp"] = ask("Who do they sell to", c["icp"],
+                   "Enter if you don't know: the audit flags it as a finding, and it is usually THE finding.")
+    c["cadence"] = ask("Content cadence", c["cadence"])
+
+    print()
+    print("  Connected tools — only the ones you have a REAL credential for.")
+    print(f"  Available: {', '.join(COMMON_TOOLS)}")
+    current = [k for k, v in c["tools"].items() if v]
+    r = ask("Which ones (comma-separated, enter = none)", ", ".join(current))
+    chosen = {x.strip() for x in r.split(",") if x.strip()}
+    unknown = chosen - set(COMMON_TOOLS)
+    c["tools"] = {k: (k in chosen) for k in COMMON_TOOLS}
+    for extra in sorted(unknown):
+        c["tools"][extra] = True
+    if chosen:
+        r = ask("Environment variables holding those credentials (comma, enter = none)",
+                ", ".join(c["credentials_env"]),
+                "The variable NAME only. The value never reaches the repo.")
+        c["credentials_env"] = [x.strip() for x in r.split(",") if x.strip()]
+    else:
+        c["credentials_env"] = []
+    return c
+
+
+def apply_sets(c, args):
+    """Non-interactive path: `--set key=value`. It exists because from Claude Code (or any
+    script) there is no terminal, and the interview would silently take every default.
+    Returns (client, had_sets)."""
+    sets = {}
+    i = 0
+    while i < len(args):
+        if args[i] == "--set" and i + 1 < len(args):
+            kv = args[i + 1]
+            if "=" not in kv:
+                die(f"--set expects key=value, got '{kv}'")
+            k, v = kv.split("=", 1)
+            sets[k.strip()] = v.strip()
+            i += 2
+        else:
+            i += 1
+    if not sets:
+        return c, False
+    valid = {"name", "website", "language", "business", "icp", "cadence", "tools", "credentials_env"}
+    for k, v in sets.items():
+        if k not in valid:
+            die(f"--set: unknown key '{k}'. Valid: {', '.join(sorted(valid))}")
+        if k == "tools":
+            chosen = {x.strip() for x in v.split(",") if x.strip()}
+            c["tools"] = {x: False for x in COMMON_TOOLS}
+            for e in chosen:
+                c["tools"][e] = True
+        elif k == "credentials_env":
+            c["credentials_env"] = [x.strip() for x in v.split(",") if x.strip()]
+        else:
+            c[k] = v
+    return c, True
+
+
+def empty_client(cid):
+    return {"id": cid, "name": cid, "website": "", "language": "English", "business": "",
+            "icp": "", "cadence": "4 weeks",
+            "tools": {k: False for k in COMMON_TOOLS}, "credentials_env": []}
+
+
+def load_client(cid):
+    cfg = yaml.safe_load(read_if(ROOT / "clients" / cid / "client.yaml")) or {}
+    c = empty_client(cid)
+    for k in ("name", "website", "language", "business", "icp", "cadence"):
+        if cfg.get(k):
+            c[k] = str(cfg[k])
+    c["tools"] = {k: False for k in COMMON_TOOLS}
+    for k, v in (cfg.get("tools") or {}).items():
+        c["tools"][k] = bool(v)
+    c["credentials_env"] = list(cfg.get("credentials_env") or [])
+    return c
+
+
+BRAND_TEMPLATE = """# Brand — {name}
+
+> Deliberately empty. `website-audit` **infers** the voice, the proof and the competition by
+> reading {website}, and judges whether they come across. Filling this in by hand before the
+> audit contaminates the judgement with what we assume the site says.
+>
+> After the audit, fill it in with what you learned — above all `## Proof`, which is what
+> allows (or forbids) the copy to use figures.
+
+## What it does
+
+## Voice
+
+## What we do NOT say
+
+## Proof
+
+## Competition
+"""
+
+
+def cmd_edit(args):
+    if len(args) < 1:
+        die("usage: agency edit <client>")
+    cid = args[0]
+    d = ROOT / "clients" / cid
+    if not d.is_dir():
+        die(f"no such client '{cid}'. Run: agency clients")
+    c, had_sets = apply_sets(load_client(cid), args)
+    if not had_sets:
+        print(f"Editing '{cid}'. Enter keeps the current value.")
+        c = interview(c)
+    (d / "client.yaml").write_text(client_yaml_text(c), encoding="utf8")
+    print()
+    ok("client.yaml updated")
+    gray(f"  {d / 'client.yaml'}")
+
+
+def cmd_new(args):
+    if len(args) < 1:
+        die('usage: agency new <id> ["<Name>"]')
+    cid = args[0]
+    dst = ROOT / "clients" / cid
+    if dst.exists():
+        die(f"client '{cid}' already exists. To change it: agency edit {cid}")
+
+    c = empty_client(cid)
+    if len(args) > 1 and not args[1].startswith("--"):
+        c["name"] = args[1]
+    c, had_sets = apply_sets(c, args)
+    if not had_sets:
+        print(f"New client '{cid}'. Enter accepts the value in brackets.")
+        c = interview(c)
+
+    shutil.copytree(ROOT / "clients" / "_template", dst)
+    (dst / "client.yaml").write_text(client_yaml_text(c), encoding="utf8")
+
+    # brand.md: if there is a site, the audit infers it. Filling it by hand contaminates the
+    # judgement with what WE think the site says.
+    if c["website"]:
+        (dst / "brand.md").write_text(
+            BRAND_TEMPLATE.format(name=c["name"], website=c["website"]), encoding="utf8")
+
+    print()
+    ok(f"client '{cid}' created")
+    gray(f"  {dst}")
+    print()
+    if c["website"]:
+        print(f"  Ready to run:  agency run {cid} website-audit")
+        print("  (brand.md is left empty on purpose: the audit infers it from the site)")
+    else:
+        print("  Without a site, website-audit cannot run.")
+        print(f"  Add it with:  agency edit {cid}")
+    print(f"  Client data (CSVs, exports) ->  {dst / 'data'}/")
+
+
+def cmd_workflows(args):
+    print(f"Workflows in {ROOT / 'workflows'}:")
+    for wid, wf in sorted(workflows().items()):
+        gated = sum(1 for p in wf["phases"] if p.get("gate"))
+        print(f"  {wid:<16} {wf['name']}")
+        print(f"  {'':<16} {wf['description']}")
+        print(f"  {'':<16} {len(wf['phases'])} phases · {gated} gates · delivers {wf['deliverable']}")
+
+
+def run_claude(persona, prompt, cwd):
+    # The prompt goes over STDIN, not argv: `--add-dir` is variadic (it would swallow the
+    # prompt as another directory) and the prompt carries prior artifacts inside it, which
+    # can exceed the argv limit.
+    cmd = [CLAUDE, "-p", "--model", MODEL, "--system-prompt", persona,
+           "--permission-mode", PERMISSION_MODE,
+           *[a for m in methods() for a in ("--add-dir", str(m["dir"]))],
+           "--add-dir", str(ROOT / "skills")]
+    sys.stdout.flush()
+    r = subprocess.run(cmd, cwd=str(cwd), text=True, input=prompt)
+    return r.returncode
+
+
+def preflight(client, wid, cdir):
+    """A run costs minutes and tokens. If the client lacks what the first phase needs, the
+    deliverable comes out hollow — better to fail here."""
+    cfg = yaml.safe_load(read_if(cdir / "client.yaml")) or {}
+    if wid == "website-audit" and not (cfg.get("website") or "").strip():
+        die(f"'{client}' has no website, and website-audit comes entirely from it.\n"
+            f"  Add it with:  agency edit {client}")
+    if wid == "growth-audit":
+        data = [f for f in (cdir / "data").glob("*")
+                if f.is_file() and f.suffix.lower() in (".csv", ".tsv", ".json", ".xlsx")]
+        if not data:
+            die(f"'{client}' has no data in {cdir / 'data'}/ and growth-audit needs it.\n"
+                "  Without data the deliverable is well-written opinion, not an audit.\n"
+                f"  With only the site, run:  agency run {client} website-audit")
+
+
+def gate_banner(client, wid, phase, jd):
+    print(f"\n{C_YELLOW}[gate]{C_OFF} {phase['gate'].strip()}\n")
+    print(f"   Artifact: {jd / phase['produces']}")
+    print(f"   Approve:  agency approve {client} {wid}")
+    print(f"   Reject:   agency reject {client} {wid} \"what to change\"")
+
+
+def cmd_run(args):
+    if len(args) < 2:
+        die("usage: agency run <client> <workflow>")
+    client, wid = args[0], args[1]
+    cdir = ROOT / "clients" / client
+    if not cdir.is_dir():
+        die(f"no such client '{client}'. Run: agency clients")
+    wfs = workflows()
+    if wid not in wfs:
+        die(f"no such workflow '{wid}'. Run: agency workflows")
+    wf = wfs[wid]
+    preflight(client, wid, cdir)
+
+    jd = job_dir(client, wid)
+    jd.mkdir(parents=True, exist_ok=True)
+    state = load_state(client, wid)
+
+    for phase in wf["phases"]:
+        st = state["phases"].get(phase["id"], {})
+        if st.get("status") == "done":
+            continue
+        if st.get("status") == "awaiting-gate":
+            print(f"\n{C_YELLOW}This job is stopped at the '{phase['id']}' gate.{C_OFF}")
+            gate_banner(client, wid, phase, jd)
+            return
+
+        missing = [r for r in phase.get("requires", []) if not (jd / r).is_file()]
+        if missing:
+            die(f"phase '{phase['id']}' requires {missing}, which are not on disk")
+
+        print(f"\n-- {wf['name']} · phase '{phase['id']}' · agent {phase['agent']} --")
+        ag = agents()[phase["agent"]]
+        prompt = build_prompt(client, wf, phase, jd, feedback=st.get("feedback"))
+        (jd / f".prompt-{phase['id']}.md").write_text(prompt, encoding="utf8")
+        rc = run_claude(ag["persona"], prompt, cdir)
+
+        artifact = jd / phase["produces"]
+        produced = artifact.is_file() or (artifact.parent.is_dir() and phase["produces"].endswith("/"))
+        if rc != 0 or not produced:
+            state["phases"][phase["id"]] = {"status": "failed", "at": now()}
+            save_state(client, wid, state)
+            die(f"phase '{phase['id']}' did NOT produce {phase['produces']} (claude exited {rc}). "
+                "A phase with no artifact on disk is not done.")
+
+        state["phases"][phase["id"]] = {
+            "status": "awaiting-gate" if phase.get("gate") else "done",
+            "at": now(), "artifact": phase["produces"],
+        }
+        save_state(client, wid, state)
+        ok(f"phase '{phase['id']}' -> {artifact}")
+
+        if phase.get("gate"):
+            gate_banner(client, wid, phase, jd)
+            return
+
+    print()
+    ok(f"'{wf['name']}' finished. Deliverable: {jd / wf['deliverable']}")
+
+
+def _gate_phase(client, wid):
+    state = load_state(client, wid)
+    for pid, st in state["phases"].items():
+        if st.get("status") == "awaiting-gate":
+            return state, pid
+    return state, None
+
+
+def cmd_approve(args):
+    if len(args) < 2:
+        die("usage: agency approve <client> <workflow>")
+    client, wid = args[0], args[1]
+    state, pid = _gate_phase(client, wid)
+    if not pid:
+        die("no gate is waiting for approval")
+    state["phases"][pid] = {**state["phases"][pid], "status": "done", "approved_at": now()}
+    save_state(client, wid, state)
+    ok(f"gate '{pid}' approved")
+    gray(f"  continue with: agency run {client} {wid}")
+
+
+def cmd_reject(args):
+    if len(args) < 3:
+        die('usage: agency reject <client> <workflow> "what to change"')
+    client, wid, feedback = args[0], args[1], " ".join(args[2:])
+    state, pid = _gate_phase(client, wid)
+    if not pid:
+        die("no gate is waiting for approval")
+    state["phases"][pid] = {"status": "pending", "feedback": feedback, "rejected_at": now()}
+    save_state(client, wid, state)
+    ok(f"gate '{pid}' rejected — the phase will be redone with your feedback")
+    gray(f"  run: agency run {client} {wid}")
+
+
+def cmd_ask(args):
+    """No workflow: the model builds the plan, but only with OUR skills."""
+    if len(args) < 2:
+        die('usage: agency ask <client> "<request>"')
+    client, request = args[0], " ".join(args[1:])
+    cdir = ROOT / "clients" / client
+    if not cdir.is_dir():
+        die(f"no such client '{client}'")
+    cfg = yaml.safe_load(read_if(cdir / "client.yaml")) or {}
+    language = cfg.get("language") or "English"
+    cat = skill_catalog()
+    jd = cdir / "jobs" / "ad-hoc"
+    jd.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    out = jd / f"{stamp}.md"
+    lines = [f"- `{s}` — {v[0]}\n  -> `{v[1] / 'SKILL.md'}`" for s, v in sorted(cat.items())]
+
+    prompt = f"""{read_if(ROOT / 'AGENCY.md')}
+
+# Client: {cfg.get('name', client)}
+
+**Deliverable language: {language}.**
+
+===== client.yaml =====
+{read_if(cdir / 'client.yaml')}
+
+===== brand.md =====
+{read_if(cdir / 'brand.md')}
+{knowledge_block(cdir)}
+
+# The agency's FULL catalog ({len(cat)} skills)
+
+These are the only methods you may use. Read the ones that apply with Read, from the path
+shown under each.
+
+{chr(10).join(lines)}
+
+{tools_block()}
+
+# The request
+
+{request}
+
+# How to work
+
+There is no declared workflow for this, so **build the plan yourself**:
+
+1. Write the plan first: which phases, which skill you use in each, and what each produces.
+2. Before executing it, say explicitly whether this request should become a stable workflow
+   of the agency — and if so, what its phases and gates would be.
+3. Execute it.
+4. Write everything — the plan, the work and the deliverable — to **`{out}`**.
+
+The house rules apply exactly as in a declared workflow. And if at any point the work would
+require publishing, sending or touching a client account: **stop and ask.**
+"""
+    (jd / f".prompt-{stamp}.md").write_text(prompt, encoding="utf8")
+    persona = ("You are a senior marketing professional at an agency. You work with method: "
+               "you pick the right skill from the agency catalog, read it, and follow it.")
+    rc = run_claude(persona, prompt, cdir)
+    if rc != 0 or not out.is_file():
+        die(f"the request did not produce {out} (claude exited {rc})")
+    ok(f"done -> {out}")
+
+
+def cmd_status(args):
+    if len(args) < 1:
+        die("usage: agency status <client>")
+    client = args[0]
+    jdir = ROOT / "clients" / client / "jobs"
+    if not jdir.is_dir() or not any(jdir.iterdir()):
+        print(f"'{client}' has no jobs yet.")
+        return
+    wfs = workflows()
+    for j in sorted(jdir.iterdir()):
+        if not j.is_dir():
+            continue
+        print(f"\n{j.name}")
+        if j.name not in wfs:
+            print(f"  (ad-hoc: {len(list(j.glob('*.md')))} deliverable(s))")
+            continue
+        state = load_state(client, j.name)
+        for p in wfs[j.name]["phases"]:
+            st = state["phases"].get(p["id"], {}).get("status", "pending")
+            mark = {"done": f"{C_GREEN}✓{C_OFF}", "awaiting-gate": f"{C_YELLOW}#{C_OFF}",
+                    "failed": f"{C_RED}x{C_OFF}"}.get(st, ".")
+            print(f"  {mark} {p['id']:<18} {st:<14} {p['produces']}")
+
+
+COMMANDS = {
+    "setup": cmd_setup, "doctor": cmd_doctor, "clients": cmd_clients, "new": cmd_new,
+    "edit": cmd_edit, "workflows": cmd_workflows, "run": cmd_run, "approve": cmd_approve,
+    "reject": cmd_reject, "ask": cmd_ask, "status": cmd_status,
+}
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2 or sys.argv[1] not in COMMANDS:
+        print(__doc__)
+        sys.exit(0 if len(sys.argv) < 2 else 1)
+    COMMANDS[sys.argv[1]](sys.argv[2:])

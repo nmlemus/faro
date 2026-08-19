@@ -1,0 +1,128 @@
+# Growth audit — the job for a client who gives you actual data.
+#
+# Diagnoses where the client is losing money and what it would take to fix it. Sells first:
+# cheap to deliver, high perceived value, and it produces the material to sell everything else.
+#
+# Every phase produces a file. The file on disk is the truth: a phase is not done until its
+# artifact exists. Phases with a `gate:` stop and wait for human approval.
+#
+# Needs files in `clients/<id>/data/`. With only a website, run `website-audit` instead.
+
+id: growth-audit
+name: Growth audit
+description: Funnel and channel-mix diagnosis, with a prioritised plan of what to change.
+
+# Deliverables of these jobs, if they exist for this client, are injected in full.
+# Without this the jobs run blind to each other and the engagement does not compound.
+builds_on: [website-audit]
+deliverable: 05-growth-audit.md
+
+phases:
+  - id: intake
+    agent: strategist
+    produces: 01-intake.md
+    requires: []
+    task: |
+      Establish the audit's starting point. Invent nothing.
+
+      1. Read the client's `brand.md` and `client.yaml` and summarise what business they are
+         in, who they sell to, and what they say about themselves today.
+      2. Inventory WHAT DATA ACTUALLY EXISTS. Look in `data/` and `assets/`. List each file
+         or source with what it contains and what period it covers.
+      3. List WHAT IS MISSING to audit properly, in order of importance. For each hole: what
+         the data is, what you need it for, and how it is obtained.
+      4. Formulate the 3 to 5 business questions this audit will answer. Concrete and
+         verifiable, not "how do we grow".
+
+      If the available data is not enough to answer any serious question, say so up top. That
+      is a valid and honest result.
+
+  - id: measurement
+    agent: analyst
+    produces: 02-measurements.md
+    requires: [01-intake.md]
+    task: |
+      Get the numbers. ALL of them from running something in this session.
+
+      Work the data the intake found: read it, load it wherever it helps (sqlite, python,
+      awk — whatever you use, but run it) and compute what you can.
+
+      Depending on what exists, aim for: volume and trend by channel, acquisition cost,
+      stage-by-stage funnel conversion, cohort retention, and concentration (what share of
+      the result comes from what share of the effort).
+
+      Non-negotiable rules:
+      - Every number carries the exact command that produced it and its real output.
+      - Check the denominator of every percentage before writing it.
+      - Missing data is NOT zero data. Mark it as missing.
+      - What cannot be computed goes in a "not measurable" section with the reason.
+
+      If tools are connected (see `client.yaml → tools`), use the tool CLIs. If the credential
+      is missing, record it as a hole and move on.
+
+  - id: landscape
+    agent: researcher
+    produces: 03-landscape.md
+    requires: [01-intake.md]
+    task: |
+      Bring the external context, with sources.
+
+      1. Competition: 3 to 5 real competitors. For each: declared positioning, offer, pricing
+         if public, and which channels they show up in. Primary source (their own site) over
+         third-party commentary.
+      2. Audience: where they are, what language they use, what problem they say they have.
+      3. What the market is doing that this client is NOT doing.
+
+      Every statement carries its source (URL, command, file). Anything that is your inference
+      is labelled as inference. If out of five competitors you only got solid data on two,
+      deliver two done properly plus a list of what is missing.
+
+  - id: diagnosis
+    agent: strategist
+    produces: 04-diagnosis.md
+    requires: [02-measurements.md, 03-landscape.md]
+    gate: |
+      Review the diagnosis (04-diagnosis.md) before it turns into recommendations. Check above
+      all: does every finding rest on a number from 02-measurements.md or a source from
+      03-landscape.md? Approve, or reject with concrete feedback.
+    task: |
+      Cross the measurements with the landscape and decide WHAT IS HAPPENING.
+
+      Write the findings ordered by impact in money, not by ease of fixing. Each finding
+      carries:
+      - what was observed (with the number and its origin);
+      - what explains it (and which other explanations you ruled out, and with what);
+      - what it costs not to fix it, in the unit the client understands.
+
+      Severities:
+      - P0 — losing money right now and it can be stopped.
+      - P1 — a ceiling they will not get past this way.
+      - P2 — recorded debt.
+
+      If a finding depends on an assumption, say which part of the assumption breaks it. And
+      say explicitly what you could NOT diagnose for lack of data.
+
+  - id: recommendations
+    agent: channel-planner
+    produces: 05-growth-audit.md
+    requires: [04-diagnosis.md]
+    gate: |
+      Review the final audit (05-growth-audit.md) before the client sees it. This is the
+      deliverable. Check: is it in the client's language? Does every recommendation have its
+      verification metric? Is there any number without an origin?
+    task: |
+      Write the FINAL DELIVERABLE, addressed to the client. Someone non-technical reads this
+      and will decide with it.
+
+      Structure:
+      1. **Summary** — what we found and what we recommend, in under a page. If they only read
+         this, they should already be able to decide.
+      2. **What we measured** — the numbers, with period and origin.
+      3. **What we found** — the findings by severity, from the diagnosis.
+      4. **What we would do** — the prioritised plan. Each action carries: what gets done, what
+         we expect to happen, in what timeframe, and **which metric verifies it**. If something
+         means moving budget, say where it comes from.
+      5. **What we could not see** — the declared holes, and what it would take to close them.
+
+      Write it in `client.yaml → language`. No agency jargon. The client should be able to do
+      something Monday morning.

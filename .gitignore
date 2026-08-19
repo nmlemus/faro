@@ -1,0 +1,9 @@
+.vendor/
+.env
+__pycache__/
+.DS_Store
+# Prompts assembled by the runner: useful for debugging, not for versioning.
+clients/*/jobs/*/.prompt-*.md
+# Client data never ships with the repo. The template does; real clients do not.
+clients/*
+!clients/_template/

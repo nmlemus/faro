@@ -1,0 +1,445 @@
+<title>The Audit That Reads the Whole Site</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap">
+
+<style>
+:root {
+  --ink:        #12201F;
+  --ink-soft:   #40514F;
+  --ink-faint:  #6E7E7C;
+  --paper:      #FBFDFC;
+  --paper-2:    #F0F5F3;
+  --paper-3:    #E5EDEB;
+  --rule:       #CFDBD8;
+
+  --brand:      #0F5C57;
+  --brand-soft: #DCF0EC;
+
+  --sev-p0:     #A32017;
+  --sev-p0-bg:  #FBE7E4;
+  --sev-p1:     #8A5A11;
+  --sev-p1-bg:  #FCEEDA;
+
+  --doc-bg:     #0E1A19;
+  --doc-fg:     #D6E3E0;
+  --doc-dim:    #7E918E;
+  --doc-rule:   #233230;
+
+  --measure: 64ch;
+  --gutter: clamp(1.25rem, 5vw, 3rem);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink:        #E2EAE8;
+    --ink-soft:   #B3C1BF;
+    --ink-faint:  #8A9997;
+    --paper:      #0B1211;
+    --paper-2:    #131B1A;
+    --paper-3:    #1B2423;
+    --rule:       #2C3A38;
+    --brand:      #6FD9CD;
+    --brand-soft: #103533;
+    --sev-p0:     #F2A9A2;
+    --sev-p0-bg:  #3A1512;
+    --sev-p1:     #F0BD72;
+    --sev-p1-bg:  #3A2A0F;
+    --doc-bg:     #060C0B;
+    --doc-fg:     #D6E3E0;
+    --doc-dim:    #74847F;
+    --doc-rule:   #1D2A28;
+  }
+}
+:root[data-theme="dark"] {
+  --ink:        #E2EAE8;
+  --ink-soft:   #B3C1BF;
+  --ink-faint:  #8A9997;
+  --paper:      #0B1211;
+  --paper-2:    #131B1A;
+  --paper-3:    #1B2423;
+  --rule:       #2C3A38;
+  --brand:      #6FD9CD;
+  --brand-soft: #103533;
+  --sev-p0:     #F2A9A2;
+  --sev-p0-bg:  #3A1512;
+  --sev-p1:     #F0BD72;
+  --sev-p1-bg:  #3A2A0F;
+  --doc-bg:     #060C0B;
+  --doc-fg:     #D6E3E0;
+  --doc-dim:    #74847F;
+  --doc-rule:   #1D2A28;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: 17px; line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1080px; margin-inline: auto; padding-inline: var(--gutter); }
+.narrow { max-width: 720px; }
+
+h1, h2, h3 {
+  font-family: Newsreader, ui-serif, Georgia, serif;
+  font-weight: 500; margin: 0; text-wrap: balance;
+  letter-spacing: -0.015em;
+}
+h1 { font-size: clamp(2.35rem, 5.4vw, 4.1rem); line-height: 1.06; }
+h2 { font-size: clamp(1.7rem, 3vw, 2.4rem); line-height: 1.15; }
+h3 { font-size: 1.18rem; font-weight: 600; }
+p { margin: 0; max-width: var(--measure); }
+
+code, .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+.eyebrow {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: .71rem; letter-spacing: .15em; text-transform: uppercase;
+  color: var(--brand);
+}
+
+section { padding-block: clamp(3rem, 7vw, 5.5rem); }
+.stack { display: flex; flex-direction: column; gap: 1.15rem; }
+.stack-lg { display: flex; flex-direction: column; gap: 2.25rem; }
+.rule-top { border-top: 1px solid var(--rule); }
+
+/* ── hero ──────────────────────────────────────────────────────── */
+.hero { padding-block: clamp(3.5rem, 9vw, 6.5rem) clamp(2rem, 5vw, 3.5rem); }
+.hero h1 em { font-style: italic; color: var(--brand); }
+.lede { font-size: clamp(1.05rem, 1.55vw, 1.22rem); color: var(--ink-soft); max-width: 56ch; }
+
+/* ── the evidence document ─────────────────────────────────────── */
+.doc {
+  background: var(--doc-bg); color: var(--doc-fg);
+  border-radius: 14px; overflow: hidden;
+  border: 1px solid var(--doc-rule);
+}
+.doc-bar {
+  display: flex; align-items: center; gap: .6rem;
+  padding: .7rem 1rem; border-bottom: 1px solid var(--doc-rule);
+  font-family: "IBM Plex Mono", monospace; font-size: .74rem; color: var(--doc-dim);
+}
+.doc-bar .dot { width: 9px; height: 9px; border-radius: 999px; background: var(--doc-rule); flex: none; }
+.doc-body { padding: 1.35rem clamp(1rem, 2.5vw, 1.6rem); display: flex; flex-direction: column; gap: 1rem; }
+.doc-body p { max-width: none; font-size: .95rem; }
+.doc-h {
+  font-family: Newsreader, serif; font-size: 1.15rem; font-weight: 600;
+  color: #fff; line-height: 1.3;
+}
+:root[data-theme="dark"] .doc-h, :root:not([data-theme="light"]) .doc-h { color: var(--doc-fg); }
+.doc-quote {
+  font-family: "IBM Plex Mono", monospace; font-size: .8rem;
+  background: rgba(255,255,255,.045); border-left: 3px solid var(--sev-p1);
+  padding: .7rem .9rem; border-radius: 0 6px 6px 0;
+  overflow-x: auto; white-space: pre-wrap; word-break: break-word;
+  color: var(--doc-fg);
+}
+.doc-note { font-size: .84rem; color: var(--doc-dim); }
+
+/* ── severity table ────────────────────────────────────────────── */
+.tbl-scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: .9rem; }
+th, td { text-align: left; padding: .8rem .9rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th {
+  font-family: "IBM Plex Mono", monospace; font-size: .7rem;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint);
+  border-bottom: 1px solid var(--ink-faint);
+}
+td.ev { font-family: "IBM Plex Mono", monospace; font-size: .78rem; color: var(--ink-soft); }
+.sev {
+  font-family: "IBM Plex Mono", monospace; font-size: .7rem; font-weight: 600;
+  padding: .15rem .5rem; border-radius: 4px; white-space: nowrap;
+}
+.sev.p0 { background: var(--sev-p0-bg); color: var(--sev-p0); }
+.sev.p1 { background: var(--sev-p1-bg); color: var(--sev-p1); }
+
+/* ── numbers ───────────────────────────────────────────────────── */
+.nums { display: grid; gap: 1px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); background: var(--rule); border: 1px solid var(--rule); border-radius: 12px; overflow: hidden; }
+.num { background: var(--paper); padding: 1.3rem 1.4rem; display: flex; flex-direction: column; gap: .3rem; }
+.num b {
+  font-family: "IBM Plex Mono", monospace; font-size: 1.85rem; font-weight: 600;
+  color: var(--brand); line-height: 1; font-variant-numeric: tabular-nums;
+}
+.num span { font-size: .87rem; color: var(--ink-soft); }
+
+/* ── objection ─────────────────────────────────────────────────── */
+.obj { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.card {
+  background: var(--paper-2); border: 1px solid var(--rule);
+  border-radius: 12px; padding: 1.25rem 1.4rem;
+  display: flex; flex-direction: column; gap: .5rem;
+}
+.card h3 { font-family: "IBM Plex Sans", sans-serif; font-size: 1rem; font-weight: 600; }
+.card p { font-size: .91rem; color: var(--ink-soft); }
+.q {
+  font-family: "IBM Plex Mono", monospace; font-size: .74rem;
+  color: var(--brand); letter-spacing: .04em;
+}
+
+.pull {
+  font-family: Newsreader, serif; font-size: clamp(1.3rem, 2.6vw, 1.85rem);
+  line-height: 1.32; font-weight: 500; max-width: 34ch;
+  border-left: 3px solid var(--brand); padding-left: 1.35rem;
+}
+
+/* ── cta ───────────────────────────────────────────────────────── */
+.cta {
+  background: var(--brand-soft); border: 1px solid var(--brand);
+  border-radius: 16px; padding: clamp(1.6rem, 4vw, 2.6rem);
+  display: flex; flex-direction: column; gap: 1rem; align-items: flex-start;
+}
+.cta h2 { max-width: 20ch; }
+.cta p { color: var(--ink-soft); }
+.btn {
+  display: inline-flex; align-items: center; gap: .6rem;
+  background: var(--brand); color: var(--paper);
+  font-family: "IBM Plex Sans", sans-serif; font-weight: 600; font-size: .97rem;
+  border: none; border-radius: 999px; padding: .8rem 1.5rem;
+  text-decoration: none; cursor: pointer;
+  transition: filter .18s ease;
+}
+.btn:hover { filter: brightness(1.12); }
+.btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+.cta small { font-size: .8rem; color: var(--ink-faint); font-family: "IBM Plex Mono", monospace; }
+
+footer { border-top: 1px solid var(--rule); padding-block: 2.2rem 3.2rem; color: var(--ink-faint); font-size: .86rem; }
+footer a { color: var(--brand); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="hero stack">
+    <div class="eyebrow">website audit</div>
+    <h1>It reads every page, then tells you<br>what is <em>actually broken</em>.</h1>
+    <p class="lede">
+      No access to analytics. No tracking pixel. No questionnaire for the client to fill in.
+      Just the public site — the same thing a visitor, a search engine or an AI assistant
+      sees — read page by page, quoted verbatim, and judged.
+    </p>
+  </header>
+
+  <!-- ── proof, first ────────────────────────────────────────── -->
+  <section class="stack-lg rule-top">
+    <div class="stack narrow">
+      <div class="eyebrow">what it found · a real run</div>
+      <h2>Two dead buttons on the page that recruits paying customers</h2>
+      <p>
+        This is verbatim from an audit of a marketplace app's site. It took about twenty
+        minutes, unattended. Nobody told it to check the HTML.
+      </p>
+    </div>
+
+    <div class="doc">
+      <div class="doc-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span>05-website-audit.md — §2.3</span></div>
+      <div class="doc-body">
+        <div class="doc-h">Two of the site's core buttons are dead, and the copy tells people to click a button that doesn't exist</div>
+        <p>On the provider page — the page meant to recruit the paying side of the marketplace — the primary "Get Started" button goes nowhere:</p>
+        <div class="doc-quote">&lt;a class="elementor-button elementor-button-link elementor-size-sm" href="#"&gt;Get Started&lt;/a&gt;</div>
+        <p>
+          The App Store badge next to the working Google Play badge is also dead
+          (<code>href="#"</code>), so an iPhone-using provider who scrolls to the clearest,
+          most concrete part of the page hits a dead end. And the closing paragraph instructs
+          the reader:
+        </p>
+        <div class="doc-quote">"Click 'Sign Up Your Business' and start your journey to success."</div>
+        <p>
+          No button anywhere on the page carries that label. These are one-line fixes, but
+          until they're made, a real share of the providers who make it furthest into the
+          page — the ones who are actually convinced — cannot act on it.
+        </p>
+      </div>
+    </div>
+
+    <div class="stack narrow">
+      <p>
+        Every finding arrives like that: the problem, the evidence quoted from the page, and
+        the fix. Seven P0s in that one audit, each with its own row.
+      </p>
+    </div>
+
+    <div class="tbl-scroll">
+      <table>
+        <thead>
+          <tr><th>Sev</th><th>Finding</th><th>Evidence, verbatim</th><th>Fix</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="sev p0">P0</span></td>
+            <td>"Get Started" on the provider page is a dead link</td>
+            <td class="ev">href="#" (raw HTML, providers page)</td>
+            <td>Point it at <code>#download</code>, same as the button that works</td>
+          </tr>
+          <tr>
+            <td><span class="sev p0">P0</span></td>
+            <td>App Store badge is dead; the Google Play badge beside it works</td>
+            <td class="ev">href="#" — the correct URL already exists on the home page</td>
+            <td>Copy the working URL across. One line.</td>
+          </tr>
+          <tr>
+            <td><span class="sev p0">P0</span></td>
+            <td>Zero verifiable proof anywhere on the site</td>
+            <td class="ev">6 unattributed testimonials · 0 schema markup · app store: "hasn't received enough ratings to display an overview"</td>
+            <td>Publish real numbers, even small honest ones</td>
+          </tr>
+          <tr>
+            <td><span class="sev p0">P0</span></td>
+            <td>The H1 never says what it is or who it is for</td>
+            <td class="ev">"Connect with Your City Like Never Before" — no category, no geography, no action</td>
+            <td>Lead with the category and the city</td>
+          </tr>
+          <tr>
+            <td><span class="sev p1">P1</span></td>
+            <td>No stated reason to choose it over the free habit people already have</td>
+            <td class="ev">No named alternative anywhere on the site</td>
+            <td>Write the "why us, not what you already do" case</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── the honesty ─────────────────────────────────────────── -->
+  <section class="stack-lg rule-top">
+    <div class="stack narrow">
+      <div class="eyebrow">the part nobody else writes</div>
+      <h2>It tells the client what it could not know</h2>
+      <p>
+        Every audit opens by drawing its own boundary. This is section 1 of the same
+        deliverable, unedited:
+      </p>
+    </div>
+
+    <div class="doc">
+      <div class="doc-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span>05-website-audit.md — §1</span></div>
+      <div class="doc-body">
+        <div class="doc-h">What we looked at, and what we didn't</div>
+        <p>
+          <strong>We had no access to analytics, conversion data, or revenue.</strong> That
+          means this audit <strong>says nothing about</strong>:
+        </p>
+        <div class="doc-quote">· How many people visit the site, or where they come from
+· Where visitors actually drop off before installing
+· Click-through rate on any button (including the two we found broken)
+· Search rankings, keyword volume, or organic traffic
+· Cost of acquisition, or which channel produces installs</div>
+        <p>
+          Everywhere below that a number like this would normally go, we say plainly that we
+          don't have it — we don't guess at it.
+        </p>
+      </div>
+    </div>
+
+    <div class="stack narrow">
+      <p class="pull">A declared hole is worth something. A plausible invented number is what loses the account.</p>
+      <p>
+        That paragraph is not politeness. It is the rule the system runs on: no number enters
+        a deliverable unless it came out of something run in that session. Not from memory,
+        not from an industry average, not from a reasonable estimate. And the last section of
+        every audit lists exactly which access would answer each open question — which is
+        how the next piece of work gets sold.
+      </p>
+    </div>
+  </section>
+
+  <!-- ── numbers ─────────────────────────────────────────────── -->
+  <section class="stack-lg rule-top">
+    <div class="stack narrow">
+      <div class="eyebrow">what it costs you</div>
+      <h2>Twenty minutes you spend on something else</h2>
+    </div>
+    <div class="nums">
+      <div class="num"><b>~20</b><span>minutes per audit, unattended</span></div>
+      <div class="num"><b>2</b><span>moments you review and approve</span></div>
+      <div class="num"><b>1</b><span>thing the client has to give you: their URL</span></div>
+      <div class="num"><b>0</b><span>numbers invented when data is missing</span></div>
+    </div>
+    <div class="stack narrow">
+      <p>
+        You start it, walk away, and come back to a draft. It stops twice: once after the
+        positioning read, once before the client-facing document. You approve, or you reject
+        with a sentence and that phase is redone with your words folded in. Nothing reaches a
+        client that you have not read.
+      </p>
+    </div>
+  </section>
+
+  <!-- ── objections ──────────────────────────────────────────── -->
+  <section class="stack-lg rule-top">
+    <div class="stack narrow">
+      <div class="eyebrow">the honest answers</div>
+      <h2>What you are probably about to ask</h2>
+    </div>
+
+    <div class="obj">
+      <div class="card">
+        <div class="q">"Do I have to use a terminal?"</div>
+        <h3>Right now, yes.</h3>
+        <p>
+          Today it runs from a command line: one command to start a job, one to approve. It is
+          three commands total and they are always the same three. If that is a dealbreaker,
+          say so — a visual version is the next thing being built, and knowing you need it
+          moves it up.
+        </p>
+      </div>
+      <div class="card">
+        <div class="q">"Is this just ChatGPT with extra steps?"</div>
+        <h3>The difference is what it refuses to do.</h3>
+        <p>
+          A chat assistant asked to complete a table will complete the table. This one stops,
+          names what is missing, and hands you a section listing what access would fill it.
+          That refusal is the product.
+        </p>
+      </div>
+      <div class="card">
+        <div class="q">"Will it invent things about my client?"</div>
+        <h3>Every claim carries its source.</h3>
+        <p>
+          Findings quote the page and cite the URL read in that session. Anything the system
+          inferred is labelled as inference. If it cannot verify something, it says so instead
+          of filling the gap.
+        </p>
+      </div>
+      <div class="card">
+        <div class="q">"What happens after the audit?"</div>
+        <h3>Three more pipelines, in order.</h3>
+        <p>
+          A growth audit once the client shares data, a launch plan, and a recurring content
+          engine. Each one reads the approved deliverables of the ones before it, so the work
+          compounds instead of repeating.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── cta ─────────────────────────────────────────────────── -->
+  <section class="rule-top">
+    <div class="cta">
+      <div class="eyebrow">start here</div>
+      <h2>Send us a URL. Get the audit back.</h2>
+      <p>
+        We will run it on a site of your choosing — yours, or a client you are pitching — and
+        send you the deliverable exactly as it comes out. If it finds nothing worth fixing,
+        you have lost an email.
+      </p>
+      <a class="btn" href="mailto:REPLACE-WITH-YOUR-EMAIL?subject=Site%20audit">Request an audit &rarr;</a>
+      <small>&larr; replace this address before publishing</small>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      Run on a marketplace app's live site. Every quote on this page is verbatim from that
+      deliverable; nothing was edited for effect. Curious how it is built?
+      <a href="./index.html">The system, in detail &rarr;</a>
+    </p>
+  </footer>
+</div>

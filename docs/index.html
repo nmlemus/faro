@@ -1,0 +1,1101 @@
+<title>The Agency Operating System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+/* ── Material Design 3 tonal system, seeded on teal-ink ─────────────────── */
+:root {
+  --primary:            #0F5C57;
+  --on-primary:         #FFFFFF;
+  --primary-container:  #A8F2E8;
+  --on-primary-container:#00201D;
+
+  --secondary:          #4A6360;
+  --on-secondary:       #FFFFFF;
+  --secondary-container:#CCE8E4;
+  --on-secondary-container:#0A1F1D;
+
+  /* tertiary is reserved for GATES and nothing else */
+  --tertiary:           #8A5A11;
+  --on-tertiary:        #FFFFFF;
+  --tertiary-container: #FFDDB0;
+  --on-tertiary-container:#2C1700;
+
+  --error:              #8C1D18;
+  --error-container:    #F9DEDC;
+  --on-error-container:  #410E0B;
+
+  /* neutrals biased toward the seed, never pure grey */
+  --surface:            #F5FAF8;
+  --surface-dim:        #D8E0DE;
+  --s-lowest:           #FFFFFF;
+  --s-low:              #EFF5F3;
+  --s-container:        #E9F1EF;
+  --s-high:             #E3EBE9;
+  --s-highest:          #DDE5E3;
+  --on-surface:         #171D1C;
+  --on-surface-var:     #3F4947;
+  --outline:            #6F7977;
+  --outline-var:        #C4CDCB;
+
+  /* agent tones: same lightness and chroma so none dominates */
+  --a-strategist:  #0F5C57;
+  --a-analyst:     #1B5A72;
+  --a-researcher:  #2C6046;
+  --a-planner:     #3C5480;
+  --a-copywriter:  #5F4A7D;
+  --a-editor:      #7A4257;
+
+  --shape-xs: 4px;  --shape-s: 8px;  --shape-m: 12px;
+  --shape-l: 16px;  --shape-xl: 28px;
+
+  --measure: 66ch;
+  --gutter: clamp(1.25rem, 4vw, 3rem);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --primary:            #6FD9CD;
+    --on-primary:         #00382F;
+    --primary-container:  #005047;
+    --on-primary-container:#A8F2E8;
+
+    --secondary:          #B0CCC8;
+    --on-secondary:       #1B3532;
+    --secondary-container:#324B48;
+    --on-secondary-container:#CCE8E4;
+
+    --tertiary:           #F0BD72;
+    --on-tertiary:        #472A00;
+    --tertiary-container: #663D00;
+    --on-tertiary-container:#FFDDB0;
+
+    --error:              #F2B8B5;
+    --error-container:    #601410;
+    --on-error-container:  #F9DEDC;
+
+    --surface:            #0D1211;
+    --surface-dim:        #0D1211;
+    --s-lowest:           #070B0A;
+    --s-low:              #151B1A;
+    --s-container:        #191F1E;
+    --s-high:             #232A28;
+    --s-highest:          #2E3533;
+    --on-surface:         #DDE4E2;
+    --on-surface-var:     #BEC9C6;
+    --outline:            #889390;
+    --outline-var:        #3F4947;
+
+    --a-strategist:  #6FD9CD;
+    --a-analyst:     #7FCDE8;
+    --a-researcher:  #86D5AC;
+    --a-planner:     #A9C0F0;
+    --a-copywriter:  #CDB6F0;
+    --a-editor:      #F0AFC2;
+  }
+}
+
+:root[data-theme="dark"] {
+  --primary:            #6FD9CD;
+  --on-primary:         #00382F;
+  --primary-container:  #005047;
+  --on-primary-container:#A8F2E8;
+  --secondary:          #B0CCC8;
+  --on-secondary:       #1B3532;
+  --secondary-container:#324B48;
+  --on-secondary-container:#CCE8E4;
+  --tertiary:           #F0BD72;
+  --on-tertiary:        #472A00;
+  --tertiary-container: #663D00;
+  --on-tertiary-container:#FFDDB0;
+  --error:              #F2B8B5;
+  --error-container:    #601410;
+  --on-error-container:  #F9DEDC;
+  --surface:            #0D1211;
+  --surface-dim:        #0D1211;
+  --s-lowest:           #070B0A;
+  --s-low:              #151B1A;
+  --s-container:        #191F1E;
+  --s-high:             #232A28;
+  --s-highest:          #2E3533;
+  --on-surface:         #DDE4E2;
+  --on-surface-var:     #BEC9C6;
+  --outline:            #889390;
+  --outline-var:        #3F4947;
+  --a-strategist:  #6FD9CD;
+  --a-analyst:     #7FCDE8;
+  --a-researcher:  #86D5AC;
+  --a-planner:     #A9C0F0;
+  --a-copywriter:  #CDB6F0;
+  --a-editor:      #F0AFC2;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--on-surface);
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: 17px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1180px; margin-inline: auto; padding-inline: var(--gutter); }
+
+h1, h2, h3 {
+  font-family: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  text-wrap: balance;
+  margin: 0;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+h1 { font-size: clamp(2.6rem, 6.5vw, 5rem); line-height: 1.02; }
+h2 { font-size: clamp(1.75rem, 3.4vw, 2.6rem); line-height: 1.1; }
+h3 { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em; }
+p  { margin: 0; max-width: var(--measure); }
+
+code, .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+.eyebrow {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--on-surface-var);
+  display: flex; align-items: center; gap: .75rem;
+}
+.eyebrow::after { content: ""; flex: 1; height: 1px; background: var(--outline-var); }
+
+section { padding-block: clamp(3.5rem, 8vw, 6.5rem); }
+.stack { display: flex; flex-direction: column; gap: 1.25rem; }
+.stack-lg { display: flex; flex-direction: column; gap: 2.5rem; }
+
+/* ── hero ──────────────────────────────────────────────────────────────── */
+.hero { padding-block: clamp(4rem, 11vw, 8rem) clamp(3rem, 7vw, 5rem); }
+.hero-lede {
+  font-size: clamp(1.05rem, 1.7vw, 1.3rem);
+  color: var(--on-surface-var);
+  max-width: 54ch;
+}
+.hero h1 .accent { color: var(--primary); }
+
+.counts { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
+.count {
+  background: var(--s-container);
+  border: 1px solid var(--outline-var);
+  border-radius: var(--shape-s);
+  padding: .55rem .85rem;
+  display: flex; align-items: baseline; gap: .5rem;
+}
+.count b {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 1.15rem; font-weight: 600;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+.count span { font-size: .82rem; color: var(--on-surface-var); }
+
+/* ── primitives ────────────────────────────────────────────────────────── */
+.prims { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(255px, 1fr)); }
+.prim {
+  background: var(--s-low);
+  border: 1px solid var(--outline-var);
+  border-radius: var(--shape-l);
+  padding: 1.5rem;
+  display: flex; flex-direction: column; gap: .6rem;
+}
+.prim .n {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: .72rem; letter-spacing: .1em;
+  color: var(--primary);
+}
+.prim p { font-size: .93rem; color: var(--on-surface-var); }
+
+/* ── agents ────────────────────────────────────────────────────────────── */
+.agents { display: grid; gap: .9rem; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.agent {
+  background: var(--s-low);
+  border: 1px solid var(--outline-var);
+  border-left: 4px solid var(--tone);
+  border-radius: var(--shape-m);
+  padding: 1.1rem 1.25rem;
+  display: flex; flex-direction: column; gap: .5rem;
+}
+.agent-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.agent-name { font-family: "IBM Plex Mono", monospace; font-size: .9rem; font-weight: 600; color: var(--tone); }
+.agent-n {
+  font-family: "IBM Plex Mono", monospace; font-size: .74rem;
+  color: var(--on-surface-var); font-variant-numeric: tabular-nums;
+  background: var(--s-high); border-radius: 999px; padding: .15rem .6rem;
+}
+.agent p { font-size: .9rem; color: var(--on-surface-var); }
+
+/* ── phase rails: the centrepiece ──────────────────────────────────────── */
+.rail-card {
+  background: var(--s-low);
+  border: 1px solid var(--outline-var);
+  border-radius: var(--shape-xl);
+  overflow: hidden;
+}
+.rail-head {
+  padding: 1.4rem clamp(1.1rem, 3vw, 1.9rem) 1.1rem;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem 1rem;
+  border-bottom: 1px solid var(--outline-var);
+}
+.rail-head h3 { font-family: "Bricolage Grotesque", sans-serif; font-size: 1.5rem; font-weight: 800; }
+.rail-head .needs {
+  font-family: "IBM Plex Mono", monospace; font-size: .74rem;
+  background: var(--primary-container); color: var(--on-primary-container);
+  border-radius: 999px; padding: .2rem .7rem;
+}
+.rail-head p { flex-basis: 100%; font-size: .93rem; color: var(--on-surface-var); }
+
+.rail-scroll { overflow-x: auto; padding: 1.6rem clamp(1.1rem, 3vw, 1.9rem) 1.8rem; }
+.rail { display: flex; align-items: flex-start; gap: 0; min-width: max-content; }
+
+.node { display: flex; flex-direction: column; gap: .5rem; width: 168px; }
+.node-dot {
+  width: 100%; height: 6px; border-radius: 999px; background: var(--tone);
+}
+.node-i {
+  font-family: "IBM Plex Mono", monospace; font-size: .68rem;
+  color: var(--on-surface-var); font-variant-numeric: tabular-nums;
+}
+.node-id { font-size: .95rem; font-weight: 600; line-height: 1.25; }
+.node-agent { font-family: "IBM Plex Mono", monospace; font-size: .72rem; color: var(--tone); }
+.node-art {
+  font-family: "IBM Plex Mono", monospace; font-size: .7rem;
+  color: var(--on-surface-var); word-break: break-all;
+}
+.link { width: 26px; height: 6px; background: var(--outline-var); flex: none; margin-top: 0; }
+
+.gate {
+  width: 132px; flex: none; display: flex; flex-direction: column; gap: .5rem;
+  padding-left: 26px;
+}
+.gate-bar {
+  height: 6px; border-radius: 999px;
+  background: repeating-linear-gradient(90deg, var(--tertiary) 0 7px, transparent 7px 13px);
+}
+.gate-label {
+  font-family: "IBM Plex Mono", monospace; font-size: .7rem; font-weight: 600;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--tertiary);
+}
+.gate-note { font-size: .78rem; color: var(--on-surface-var); line-height: 1.35; }
+
+/* ── sequencer ─────────────────────────────────────────────────────────── */
+.seq { display: grid; gap: 1.5rem; grid-template-columns: minmax(260px, 340px) 1fr; align-items: start; }
+@media (max-width: 800px) { .seq { grid-template-columns: 1fr; } }
+
+.cases { display: flex; flex-direction: column; gap: .5rem; }
+.case {
+  text-align: left; cursor: pointer; font: inherit;
+  background: var(--s-low); color: var(--on-surface);
+  border: 1px solid var(--outline-var); border-radius: var(--shape-m);
+  padding: .85rem 1rem; display: flex; flex-direction: column; gap: .2rem;
+  transition: background .18s ease, border-color .18s ease;
+}
+.case:hover { background: var(--s-high); }
+.case:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+.case[aria-pressed="true"] {
+  background: var(--primary-container); color: var(--on-primary-container);
+  border-color: var(--primary);
+}
+.case b { font-size: .95rem; font-weight: 600; }
+.case span { font-size: .82rem; opacity: .8; }
+
+.seq-out {
+  background: var(--s-low); border: 1px solid var(--outline-var);
+  border-radius: var(--shape-l); padding: clamp(1.1rem, 3vw, 1.6rem);
+  display: flex; flex-direction: column; gap: 1.1rem; min-height: 100%;
+}
+.chain { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.step {
+  display: flex; align-items: center; gap: .55rem;
+  background: var(--s-high); border: 1px solid var(--outline-var);
+  border-radius: 999px; padding: .4rem .9rem .4rem .5rem;
+}
+.step .k {
+  width: 22px; height: 22px; border-radius: 999px; flex: none;
+  background: var(--primary); color: var(--on-primary);
+  font-family: "IBM Plex Mono", monospace; font-size: .72rem; font-weight: 600;
+  display: grid; place-items: center;
+}
+.step .w { font-family: "IBM Plex Mono", monospace; font-size: .82rem; }
+.arrow { color: var(--outline); font-size: 1.1rem; line-height: 1; }
+.seq-why { font-size: .93rem; color: var(--on-surface-var); }
+.seq-cmds {
+  background: var(--s-lowest); border: 1px solid var(--outline-var);
+  border-radius: var(--shape-s); padding: .9rem 1rem;
+  font-family: "IBM Plex Mono", monospace; font-size: .78rem;
+  line-height: 1.85; color: var(--on-surface-var);
+  overflow-x: auto; white-space: pre;
+}
+.seq-cmds .c { color: var(--primary); }
+
+/* ── rules ─────────────────────────────────────────────────────────────── */
+.rules { display: grid; gap: .9rem; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); }
+.rule {
+  background: var(--s-container); border-radius: var(--shape-m);
+  padding: 1.15rem 1.3rem; display: flex; flex-direction: column; gap: .45rem;
+}
+.rule b { font-size: .95rem; }
+.rule p { font-size: .89rem; color: var(--on-surface-var); }
+
+.pull {
+  border-left: 3px solid var(--tertiary);
+  padding: .35rem 0 .35rem 1.25rem;
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-size: clamp(1.15rem, 2.2vw, 1.5rem);
+  font-weight: 600; line-height: 1.35; max-width: 40ch;
+}
+
+footer {
+  border-top: 1px solid var(--outline-var);
+  padding-block: 2.5rem 3.5rem;
+  color: var(--on-surface-var); font-size: .87rem;
+}
+footer p { max-width: var(--measure); }
+
+/* ── graph ─────────────────────────────────────────────────────────────── */
+.graph-shell {
+  position: relative;
+  background: var(--s-low);
+  border: 1px solid var(--outline-var);
+  border-radius: var(--shape-xl);
+  overflow: hidden;
+}
+#graph { display: block; width: 100%; height: 560px; touch-action: pan-y; }
+@media (max-width: 720px) { #graph { height: 440px; } }
+
+.graph-toolbar {
+  position: absolute; inset-inline-start: 1rem; inset-block-start: 1rem;
+  display: flex; flex-wrap: wrap; gap: .4rem; z-index: 2; max-width: calc(100% - 2rem);
+}
+.g-btn {
+  font: inherit; font-size: .78rem; cursor: pointer;
+  font-family: "IBM Plex Mono", monospace;
+  background: var(--s-highest); color: var(--on-surface);
+  border: 1px solid var(--outline-var); border-radius: 999px;
+  padding: .3rem .8rem; transition: background .15s ease, color .15s ease;
+}
+.g-btn:hover { background: var(--primary-container); color: var(--on-primary-container); }
+.g-btn:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+.g-btn[aria-pressed="true"] {
+  background: var(--tertiary); color: var(--on-tertiary); border-color: var(--tertiary);
+}
+
+.graph-readout {
+  position: absolute; inset-inline-start: 1rem; inset-block-end: 1rem;
+  z-index: 2; max-width: min(340px, calc(100% - 2rem));
+  background: var(--s-lowest); border: 1px solid var(--outline-var);
+  border-radius: var(--shape-m); padding: .8rem 1rem;
+  font-size: .85rem; line-height: 1.45; color: var(--on-surface-var);
+  pointer-events: none;
+}
+.graph-readout b {
+  display: block; font-family: "IBM Plex Mono", monospace;
+  font-size: .88rem; color: var(--on-surface); margin-bottom: .2rem;
+}
+
+.graph-legend {
+  position: absolute; inset-inline-end: 1rem; inset-block-end: 1rem; z-index: 2;
+  display: flex; flex-direction: column; gap: .3rem;
+  font-family: "IBM Plex Mono", monospace; font-size: .7rem; color: var(--on-surface-var);
+}
+.graph-legend span { display: flex; align-items: center; gap: .45rem; }
+.graph-legend .sw { width: 11px; height: 11px; border-radius: 999px; flex: none; }
+.graph-legend .sw.sm { width: 7px; height: 7px; }
+.graph-legend .sw.ring { background: var(--primary); box-shadow: 0 0 0 2px var(--primary-container); }
+.graph-legend .sw.orphan { background: transparent; border: 1.5px dashed var(--error); }
+@media (max-width: 640px) { .graph-legend { display: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="wrap">
+
+  <header class="hero stack">
+    <div class="eyebrow">an agency, as data</div>
+    <h1>Method the harness<br><span class="accent">enforces.</span></h1>
+    <p class="hero-lede">
+      Six personas, fifty-one methods, four gated pipelines. The skills are third-party and
+      pinned; the personas, the gates and the client memory are ours. Nothing here is code
+      you have to change to run a different kind of work.
+    </p>
+    <div class="counts">
+      <div class="count"><b>51</b><span>skills · 49 vendored + 2 own</span></div>
+      <div class="count"><b>6</b><span>personas</span></div>
+      <div class="count"><b>4</b><span>workflows</span></div>
+      <div class="count"><b>9</b><span>human gates</span></div>
+      <div class="count"><b>64</b><span>tool CLIs</span></div>
+    </div>
+  </header>
+
+  <!-- ── primitives ─────────────────────────────────────────────────── -->
+  <section class="stack-lg">
+    <div class="stack">
+      <div class="eyebrow">three primitives</div>
+      <h2>Skills are known. Agents decide. Workflows enforce.</h2>
+      <p>
+        They nest in that order, and each layer adds exactly one thing the layer below
+        cannot do.
+      </p>
+    </div>
+
+    <div class="prims">
+      <article class="prim">
+        <div class="n">01 · SKILL</div>
+        <h3>A method, written down</h3>
+        <p>
+          A directory with a <code>SKILL.md</code>: how to price, how to audit a funnel, how
+          to write for LinkedIn. Forty-nine come from a pinned third-party catalog; two are
+          ours. An agent reads one before working and names it in the deliverable.
+        </p>
+        <p><strong>What it adds:</strong> knowledge that can be cited.</p>
+      </article>
+
+      <article class="prim">
+        <div class="n">02 · AGENT</div>
+        <h3>A persona with a narrowed catalog</h3>
+        <p>
+          A system prompt plus the list of skills that persona may use. The catalog is
+          hermetic: the absolute path of every allowed skill is injected into the prompt, so
+          a skill outside the list does not exist as far as the model is concerned.
+        </p>
+        <p><strong>What it adds:</strong> judgement, bounded.</p>
+      </article>
+
+      <article class="prim">
+        <div class="n">03 · WORKFLOW</div>
+        <h3>Phases, artifacts, gates</h3>
+        <p>
+          An ordered set of phases. Each names its agent, what it produces, and what it
+          requires. A phase is not done until its artifact is on disk — the runner checks and
+          fails if it is missing. Some phases stop and wait for a person.
+        </p>
+        <p><strong>What it adds:</strong> a sequence that cannot be skipped.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ── agents ─────────────────────────────────────────────────────── -->
+  <section class="stack-lg">
+    <div class="stack">
+      <div class="eyebrow">the roster</div>
+      <h2>Six people who disagree about different things</h2>
+      <p>
+        Each persona owns a slice of the catalog. The count is what that persona may reach
+        for — not what exists.
+      </p>
+    </div>
+
+    <div class="agents">
+      <article class="agent" style="--tone: var(--a-strategist)">
+        <div class="agent-head"><span class="agent-name">strategist</span><span class="agent-n">7 skills</span></div>
+        <p>Decides where the brand plays: ICP, positioning, offer, and where the money goes. Produces decisions with their reasoning, never assets.</p>
+      </article>
+      <article class="agent" style="--tone: var(--a-researcher)">
+        <div class="agent-head"><span class="agent-name">researcher</span><span class="agent-n">6 skills</span></div>
+        <p>Brings verifiable facts about audience, competition and market. Every finding carries the URL, command or file it came from.</p>
+      </article>
+      <article class="agent" style="--tone: var(--a-analyst)">
+        <div class="agent-head"><span class="agent-name">analyst</span><span class="agent-n">7 skills</span></div>
+        <p>Runs the query rather than reading a dashboard. Checks the denominator. Never confuses missing data with zero.</p>
+      </article>
+      <article class="agent" style="--tone: var(--a-planner)">
+        <div class="agent-head"><span class="agent-name">channel-planner</span><span class="agent-n">18 skills</span></div>
+        <p>Turns strategy into a plan with dates, budget and an owner. Realistic about capacity. Never schedules or publishes anything.</p>
+      </article>
+      <article class="agent" style="--tone: var(--a-copywriter)">
+        <div class="agent-head"><span class="agent-name">copywriter</span><span class="agent-n">15 skills</span></div>
+        <p>Writes in the client's voice and the client's language. No factual claim without backing — if the number isn't there, the claim changes.</p>
+      </article>
+      <article class="agent" style="--tone: var(--a-editor)">
+        <div class="agent-head"><span class="agent-name">editor</span><span class="agent-n">5 skills</span></div>
+        <p>The last filter before the client or the publish button. Hunts unbacked claims first. Ships if and only if there are zero P0.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ── the graph ──────────────────────────────────────────────────── -->
+  <section class="stack-lg">
+    <div class="stack">
+      <div class="eyebrow">the whole system, at once</div>
+      <h2>Who can reach what</h2>
+      <p>
+        Every node is real: four workflows, six personas, fifty-one skills. An edge from a
+        workflow to a persona means that persona owns at least one of its phases. An edge
+        from a persona to a skill means that persona is allowed to read it — and nothing
+        outside those edges exists as far as the model is concerned.
+      </p>
+      <p>
+        Hover anything to isolate its neighbourhood. Click a workflow to walk its phases in
+        order and watch the personas hand off.
+      </p>
+    </div>
+
+    <div class="graph-shell">
+      <div class="graph-toolbar" id="g-toolbar" role="group" aria-label="Filter the graph"></div>
+      <canvas id="graph" aria-label="Interactive map of workflows, personas and skills"></canvas>
+      <div class="graph-readout" id="g-readout"></div>
+      <div class="graph-legend">
+        <span><i class="sw" style="background:var(--tertiary)"></i>workflow</span>
+        <span><i class="sw" style="background:var(--a-strategist)"></i>persona</span>
+        <span><i class="sw sm" style="background:var(--outline)"></i>skill</span>
+        <span><i class="sw sm ring"></i>own skill</span>
+        <span><i class="sw sm orphan"></i>unreachable</span>
+      </div>
+    </div>
+
+    <div class="stack">
+      <p class="pull">
+        Four skills sit in the catalog that no persona can reach. The graph shows them
+        adrift on the edge — a gap you would never find by reading the config.
+      </p>
+    </div>
+  </section>
+
+  <!-- ── the rails ──────────────────────────────────────────────────── -->
+  <section class="stack-lg">
+    <div class="stack">
+      <div class="eyebrow">four pipelines</div>
+      <h2>Where the work stops for a human</h2>
+      <p>
+        Each track below is a real workflow. Colour marks which persona owns the phase; the
+        dashed amber bars are gates, where the pipeline halts until a person approves or
+        rejects with feedback. Rejecting re-runs that phase with the feedback injected.
+      </p>
+      <p class="pull">Nine gates across four pipelines. None of them can be moved by the model.</p>
+    </div>
+
+    <div class="stack-lg" id="rails"></div>
+  </section>
+
+  <!-- ── sequencer ──────────────────────────────────────────────────── -->
+  <section class="stack-lg">
+    <div class="stack">
+      <div class="eyebrow">what to run, when</div>
+      <h2>The order is not a preference</h2>
+      <p>
+        Workflows declare <code>builds_on</code>. A declared dependency's deliverable is
+        injected in full into every phase of the dependent job, with the instruction not to
+        contradict it silently. Pick the situation you are actually in:
+      </p>
+    </div>
+
+    <div class="seq">
+      <div class="cases" id="cases" role="group" aria-label="Client situations"></div>
+      <div class="seq-out">
+        <div class="chain" id="chain"></div>
+        <p class="seq-why" id="why"></p>
+        <div class="seq-cmds" id="cmds"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── rules ──────────────────────────────────────────────────────── -->
+  <section class="stack-lg">
+    <div class="stack">
+      <div class="eyebrow">house rules</div>
+      <h2>Injected into every phase, of every workflow, for every client</h2>
+    </div>
+
+    <div class="rules">
+      <div class="rule">
+        <b>No number without an origin</b>
+        <p>A number does not enter a deliverable unless it came from something run in that session. Not memory, not an industry average, not a reasonable estimate.</p>
+      </div>
+      <div class="rule">
+        <b>Assumptions carry their sensitivity</b>
+        <p>Saying "this is an estimate" is not enough. Name the assumption and say what breaks the conclusion if it is wrong.</p>
+      </div>
+      <div class="rule">
+        <b>A declared hole beats a plausible number</b>
+        <p>If the data cannot be obtained, the deliverable says so and why. An invented figure that looks right is the failure mode this system exists to prevent.</p>
+      </div>
+      <div class="rule">
+        <b>Nothing publishes itself</b>
+        <p>Workflows write drafts and plans. Pressing the button is always an explicit human action — no phase touches a client account.</p>
+      </div>
+      <div class="rule">
+        <b>The deliverable is the client's</b>
+        <p>The system runs in English; the work ships in the client's language, their vocabulary, their brand. Set per client, injected per phase.</p>
+      </div>
+      <div class="rule">
+        <b>A phase that failed is reported</b>
+        <p>Not simulated. The runner verifies the artifact reached disk and fails loudly if it did not, whatever the model claimed.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="stack">
+    <p>
+      Skills vendored and pinned from a third-party catalog under MIT. Personas, workflows,
+      gates and the runner are original. Switching vertical — marketing today, data or
+      development tomorrow — means adding a row to <code>method.yaml</code> and re-running
+      setup. Not one line of the runner changes.
+    </p>
+  </footer>
+</div>
+
+<script>
+const AGENT_TONE = {
+  strategist: "var(--a-strategist)",
+  researcher: "var(--a-researcher)",
+  analyst: "var(--a-analyst)",
+  "channel-planner": "var(--a-planner)",
+  copywriter: "var(--a-copywriter)",
+  editor: "var(--a-editor)",
+};
+
+const WORKFLOWS = [
+  {
+    id: "website-audit", name: "Website audit", needs: "the URL alone", buildsOn: [],
+    desc: "Positioning, conversion and discoverability diagnosis from the site alone, with no access to internal data.",
+    phases: [
+      { id: "capture", agent: "researcher", art: "01-capture.md", gate: null },
+      { id: "positioning", agent: "strategist", art: "02-positioning.md",
+        gate: "Does every judgement quote a line from the site?" },
+      { id: "conversion", agent: "channel-planner", art: "03-conversion.md", gate: null },
+      { id: "discoverability", agent: "researcher", art: "04-discoverability.md", gate: null },
+      { id: "report", agent: "strategist", art: "05-website-audit.md",
+        gate: "The client sees this. Is the plan actionable this week?" },
+    ],
+  },
+  {
+    id: "growth-audit", name: "Growth audit", needs: "files in data/", buildsOn: ["website-audit"],
+    desc: "Funnel and channel-mix diagnosis, with a prioritised plan of what to change.",
+    phases: [
+      { id: "intake", agent: "strategist", art: "01-intake.md", gate: null },
+      { id: "measurement", agent: "analyst", art: "02-measurements.md", gate: null },
+      { id: "landscape", agent: "researcher", art: "03-landscape.md", gate: null },
+      { id: "diagnosis", agent: "strategist", art: "04-diagnosis.md",
+        gate: "Does every finding rest on a measured number or a cited source?" },
+      { id: "recommendations", agent: "channel-planner", art: "05-growth-audit.md",
+        gate: "Does every recommendation carry its verification metric?" },
+    ],
+  },
+  {
+    id: "launch", name: "Launch", needs: "brand.md", buildsOn: ["website-audit", "growth-audit"],
+    desc: "Positioning, offer, day-by-day plan and the launch assets.",
+    phases: [
+      { id: "positioning", agent: "strategist", art: "01-positioning.md",
+        gate: "Everything rests here. Wrong now means well-written and wrong later." },
+      { id: "offer", agent: "strategist", art: "02-offer.md", gate: null },
+      { id: "plan", agent: "channel-planner", art: "03-plan.md",
+        gate: "Is the volume sustainable? Are dependencies ordered?" },
+      { id: "assets", agent: "copywriter", art: "04-assets.md", gate: null },
+      { id: "review", agent: "editor", art: "05-launch-plan.md",
+        gate: "Any P0 from the editor means do not approve." },
+    ],
+  },
+  {
+    id: "content-engine", name: "Content engine", needs: "brand.md",
+    buildsOn: ["website-audit", "growth-audit", "launch"],
+    desc: "Angles, calendar, assets written, edited and ready to schedule.",
+    phases: [
+      { id: "angles", agent: "strategist", art: "01-angles.md", gate: null },
+      { id: "calendar", agent: "channel-planner", art: "02-calendar.md",
+        gate: "Is the volume realistic for the client's actual capacity?" },
+      { id: "drafts", agent: "copywriter", art: "03-drafts.md", gate: null },
+      { id: "edit", agent: "editor", art: "04-assets/README.md",
+        gate: "These publish on the client's accounts. Zero P0 or it does not ship." },
+    ],
+  },
+];
+
+const el = (t, cls, txt) => {
+  const n = document.createElement(t);
+  if (cls) n.className = cls;
+  if (txt !== undefined) n.textContent = txt;
+  return n;
+};
+
+// -- render the phase rails --------------------------------------------------
+const rails = document.getElementById("rails");
+for (const wf of WORKFLOWS) {
+  const card = el("article", "rail-card");
+
+  const head = el("div", "rail-head");
+  head.appendChild(el("h3", null, wf.name));
+  head.appendChild(el("span", "needs", "needs " + wf.needs));
+  if (wf.buildsOn.length) {
+    head.appendChild(el("span", "needs", "builds on " + wf.buildsOn.join(" + ")));
+  }
+  head.appendChild(el("p", null, wf.desc));
+  card.appendChild(head);
+
+  const scroll = el("div", "rail-scroll");
+  const rail = el("div", "rail");
+  wf.phases.forEach((p, i) => {
+    if (i > 0) rail.appendChild(el("div", "link"));
+    const node = el("div", "node");
+    node.style.setProperty("--tone", AGENT_TONE[p.agent]);
+    node.appendChild(el("div", "node-dot"));
+    node.appendChild(el("div", "node-i", String(i + 1).padStart(2, "0")));
+    node.appendChild(el("div", "node-id", p.id));
+    node.appendChild(el("div", "node-agent", p.agent));
+    node.appendChild(el("div", "node-art", p.art));
+    rail.appendChild(node);
+
+    if (p.gate) {
+      const g = el("div", "gate");
+      g.appendChild(el("div", "gate-bar"));
+      g.appendChild(el("div", "gate-label", "human gate"));
+      g.appendChild(el("div", "gate-note", p.gate));
+      rail.appendChild(g);
+    }
+  });
+  scroll.appendChild(rail);
+  card.appendChild(scroll);
+  rails.appendChild(card);
+}
+
+// -- the sequencer -----------------------------------------------------------
+const CASES = [
+  {
+    t: "All they gave us is a URL",
+    s: "First conversation, no access to anything",
+    chain: ["website-audit"],
+    why: "The only job that runs on a public site alone. Its last section lists exactly which accesses would turn it into an audit with numbers — that section is how the paid work opens.",
+  },
+  {
+    t: "They handed over analytics",
+    s: "CSVs, exports, a connected tool",
+    chain: ["website-audit", "growth-audit"],
+    why: "Run the site audit first even though you now have data: the growth audit builds on it, and the diagnosis is sharper when it already knows what the site claims.",
+  },
+  {
+    t: "They are shipping something",
+    s: "New product, feature, or repositioning",
+    chain: ["website-audit", "launch"],
+    why: "The launch positioning inherits the audit in full. Skip it and the launch is written against what you assume the brand says, not what it actually says.",
+  },
+  {
+    t: "Monthly retainer",
+    s: "Ongoing content, recurring billing",
+    chain: ["website-audit", "growth-audit", "content-engine"],
+    why: "Content is the execution of the plan, not decoration. The engine's territories must attack findings from the audits — without them it writes generic industry posts.",
+  },
+  {
+    t: "Full service, everything",
+    s: "The whole engagement, in order",
+    chain: ["website-audit", "growth-audit", "launch", "content-engine"],
+    why: "Each approved deliverable is injected into every later job. Run them in parallel and you get four documents that do not talk to each other.",
+  },
+];
+
+const casesEl = document.getElementById("cases");
+const chainEl = document.getElementById("chain");
+const whyEl = document.getElementById("why");
+const cmdsEl = document.getElementById("cmds");
+
+function select(idx) {
+  [...casesEl.children].forEach((b, i) =>
+    b.setAttribute("aria-pressed", String(i === idx)));
+  const c = CASES[idx];
+
+  chainEl.replaceChildren();
+  c.chain.forEach((w, i) => {
+    if (i > 0) chainEl.appendChild(el("span", "arrow", "→"));
+    const s = el("div", "step");
+    s.appendChild(el("span", "k", String(i + 1)));
+    s.appendChild(el("span", "w", w));
+    chainEl.appendChild(s);
+  });
+
+  whyEl.textContent = c.why;
+
+  cmdsEl.replaceChildren();
+  c.chain.forEach((w) => {
+    const line = el("div");
+    line.appendChild(el("span", "c", "agency run"));
+    line.appendChild(document.createTextNode(" <client> " + w));
+    cmdsEl.appendChild(line);
+    const ap = el("div");
+    ap.appendChild(el("span", "c", "agency approve"));
+    ap.appendChild(document.createTextNode(" <client> " + w + "   # at each gate"));
+    cmdsEl.appendChild(ap);
+  });
+}
+
+CASES.forEach((c, i) => {
+  const b = el("button", "case");
+  b.type = "button";
+  b.setAttribute("aria-pressed", "false");
+  b.appendChild(el("b", null, c.t));
+  b.appendChild(el("span", null, c.s));
+  b.addEventListener("click", () => select(i));
+  casesEl.appendChild(b);
+});
+select(0);
+
+/* ── the graph ─────────────────────────────────────────────────────────────
+   Extracted from the repo, not hand-written: AGENT_SKILLS is each persona's
+   allowed catalog, WF_AGENTS is the agent that owns each phase, in order.     */
+const AGENT_SKILLS = {"analyst":["analytics","attribution","ab-testing","cro","churn-prevention","revops","marketing-loops"],"channel-planner":["ads","ad-creative","seo-audit","programmatic-seo","ai-seo","site-architecture","emails","sms","social","cold-email","prospecting","referrals","influencer-marketing","co-marketing","directory-submissions","launch","landing-page","social-by-platform"],"copywriter":["copywriting","copy-editing","emails","social","ads","ad-creative","lead-magnets","signup","cro","landing-page","social-by-platform","paywalls","popups","video","image"],"editor":["copy-editing","marketing-psychology","content-strategy","schema","analytics"],"researcher":["customer-research","competitors","competitor-profiling","marketing-ideas","community-marketing","public-relations"],"strategist":["marketing-plan","offers","pricing","product-marketing","marketing-psychology","marketing-council","landing-page"]};
+const WF_AGENTS = {"website-audit":["researcher","strategist","channel-planner","researcher","strategist"],"growth-audit":["strategist","analyst","researcher","strategist","channel-planner"],"launch":["strategist","strategist","channel-planner","copywriter","editor"],"content-engine":["strategist","channel-planner","copywriter","editor"]};
+const ALL_SKILLS = ["ab-testing","ad-creative","ads","ai-seo","analytics","aso","attribution","churn-prevention","co-marketing","cold-email","community-marketing","competitor-profiling","competitors","content-strategy","copy-editing","copywriting","cro","customer-research","directory-submissions","emails","free-tools","image","influencer-marketing","landing-page","launch","lead-magnets","marketing-council","marketing-ideas","marketing-loops","marketing-plan","marketing-psychology","offers","onboarding","paywalls","popups","pricing","product-marketing","programmatic-seo","prospecting","public-relations","referrals","revops","sales-enablement","schema","seo-audit","signup","site-architecture","sms","social","social-by-platform","video"];
+const OWN_SKILLS = new Set(["landing-page", "social-by-platform"]);
+
+const cvs = document.getElementById("graph");
+const ctx = cvs.getContext("2d");
+const readout = document.getElementById("g-readout");
+const toolbar = document.getElementById("g-toolbar");
+
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+let PAL = {};
+function readPalette() {
+  PAL = {
+    tertiary: css("--tertiary"), outline: css("--outline"), outlineVar: css("--outline-var"),
+    onSurface: css("--on-surface"), onVar: css("--on-surface-var"),
+    surface: css("--s-low"), error: css("--error"), primary: css("--primary"),
+    strategist: css("--a-strategist"), analyst: css("--a-analyst"),
+    researcher: css("--a-researcher"), "channel-planner": css("--a-planner"),
+    copywriter: css("--a-copywriter"), editor: css("--a-editor"),
+  };
+}
+readPalette();
+
+// -- build the node/edge model ----------------------------------------------
+const nodes = [], edges = [], byId = new Map();
+const push = (n) => { n.x = 0; n.y = 0; n.vx = 0; n.vy = 0; nodes.push(n); byId.set(n.id, n); return n; };
+
+Object.keys(WF_AGENTS).forEach((w) =>
+  push({ id: "w:" + w, kind: "workflow", label: w, r: 15 }));
+Object.keys(AGENT_SKILLS).forEach((a) =>
+  push({ id: "a:" + a, kind: "agent", label: a, r: 10, tone: PAL[a] }));
+
+const reachable = new Set(Object.values(AGENT_SKILLS).flat());
+ALL_SKILLS.forEach((s) =>
+  push({ id: "s:" + s, kind: "skill", label: s, r: 4.2,
+         own: OWN_SKILLS.has(s), orphan: !reachable.has(s) }));
+
+for (const [w, agentsInOrder] of Object.entries(WF_AGENTS)) {
+  new Set(agentsInOrder).forEach((a) =>
+    edges.push({ s: byId.get("w:" + w), t: byId.get("a:" + a), kind: "owns" }));
+}
+for (const [a, skills] of Object.entries(AGENT_SKILLS)) {
+  skills.forEach((s) => {
+    const t = byId.get("s:" + s);
+    if (t) edges.push({ s: byId.get("a:" + a), t, kind: "reads" });
+  });
+}
+
+const adj = new Map(nodes.map((n) => [n.id, new Set()]));
+edges.forEach((e) => { adj.get(e.s.id).add(e.t.id); adj.get(e.t.id).add(e.s.id); });
+
+// seed positions on a ring so the sim settles fast and repeatably
+nodes.forEach((n, i) => {
+  const ang = (i / nodes.length) * Math.PI * 2;
+  const rad = n.kind === "workflow" ? 60 : n.kind === "agent" ? 130 : 230;
+  n.x = Math.cos(ang) * rad; n.y = Math.sin(ang) * rad;
+});
+
+let W = 0, H = 0, DPR = 1;
+function resize() {
+  const rect = cvs.getBoundingClientRect();
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = rect.width; H = rect.height;
+  cvs.width = W * DPR; cvs.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+resize();
+new ResizeObserver(resize).observe(cvs);
+
+// -- force simulation --------------------------------------------------------
+const IDEAL = { owns: 95, reads: 62 };
+function step() {
+  // repulsion, O(n^2) but n is 61
+  for (let i = 0; i < nodes.length; i++) {
+    const a = nodes[i];
+    for (let j = i + 1; j < nodes.length; j++) {
+      const b = nodes[j];
+      let dx = b.x - a.x, dy = b.y - a.y;
+      let d2 = dx * dx + dy * dy || 0.01;
+      const push = (a.r + b.r) * 34 / d2;
+      const d = Math.sqrt(d2);
+      const fx = (dx / d) * push, fy = (dy / d) * push;
+      a.vx -= fx; a.vy -= fy; b.vx += fx; b.vy += fy;
+    }
+  }
+  // springs
+  for (const e of edges) {
+    let dx = e.t.x - e.s.x, dy = e.t.y - e.s.y;
+    const d = Math.hypot(dx, dy) || 0.01;
+    const f = (d - IDEAL[e.kind]) * 0.0085;
+    const fx = (dx / d) * f, fy = (dy / d) * f;
+    e.s.vx += fx; e.s.vy += fy; e.t.vx -= fx; e.t.vy -= fy;
+  }
+  // gravity toward the centre, weakest for skills so they fan out
+  for (const n of nodes) {
+    const g = n.kind === "workflow" ? 0.012 : n.kind === "agent" ? 0.006 : 0.0022;
+    n.vx -= n.x * g; n.vy -= n.y * g;
+    n.vx *= 0.86; n.vy *= 0.86;
+    n.x += n.vx; n.y += n.vy;
+  }
+}
+
+// -- interaction -------------------------------------------------------------
+let hover = null, pinned = null, mouse = { x: 0, y: 0, on: false };
+
+function activeSet() {
+  const focus = hover || pinned;
+  if (!focus) return null;
+  const s = new Set([focus.id]);
+  adj.get(focus.id).forEach((id) => s.add(id));
+  if (focus.kind === "workflow") {
+    // pull in each owned persona's skills too — the workflow's real reach
+    adj.get(focus.id).forEach((aid) => adj.get(aid).forEach((sid) => s.add(sid)));
+  }
+  return s;
+}
+
+function nodeAt(px, py) {
+  let best = null, bestD = 16;
+  for (const n of nodes) {
+    const d = Math.hypot(n.x + W / 2 - px, n.y + H / 2 - py);
+    if (d < Math.max(n.r + 6, bestD)) { if (d < bestD) { bestD = d; best = n; } }
+  }
+  return best;
+}
+
+cvs.addEventListener("pointermove", (ev) => {
+  const r = cvs.getBoundingClientRect();
+  mouse.x = ev.clientX - r.left; mouse.y = ev.clientY - r.top; mouse.on = true;
+  const n = nodeAt(mouse.x, mouse.y);
+  hover = n;
+  cvs.style.cursor = n ? "pointer" : "default";
+  describe(n || pinned);
+});
+cvs.addEventListener("pointerleave", () => { mouse.on = false; hover = null; describe(pinned); });
+cvs.addEventListener("click", () => {
+  const n = nodeAt(mouse.x, mouse.y);
+  if (n && n.kind === "workflow") setPinned(n.label);
+  else if (n) { pinned = n; syncToolbar(); describe(n); }
+  else { pinned = null; syncToolbar(); describe(null); }
+});
+
+function describe(n) {
+  if (!n) {
+    const orphans = nodes.filter((x) => x.orphan).map((x) => x.label);
+    readout.innerHTML = "<b>51 skills · 6 personas · 4 workflows</b>" +
+      "Unreachable by any persona: <code>" + orphans.join("</code>, <code>") + "</code>";
+    return;
+  }
+  if (n.kind === "workflow") {
+    const seq = WF_AGENTS[n.label];
+    readout.innerHTML = "<b>" + n.label + "</b>Phases hand off: " +
+      seq.map((a, i) => (i + 1) + ". " + a).join(" → ");
+  } else if (n.kind === "agent") {
+    const owns = Object.entries(WF_AGENTS).filter(([, v]) => v.includes(n.label)).map(([k]) => k);
+    readout.innerHTML = "<b>" + n.label + "</b>May read " + AGENT_SKILLS[n.label].length +
+      " skills · owns phases in " + owns.join(", ");
+  } else {
+    const who = Object.entries(AGENT_SKILLS).filter(([, v]) => v.includes(n.label)).map(([k]) => k);
+    readout.innerHTML = "<b>" + n.label + "</b>" +
+      (n.orphan ? "In the catalog, but <strong>no persona can reach it</strong>."
+                : "Readable by " + who.join(", ")) +
+      (n.own ? " · written by us, shadows any vendored skill of the same name" : "");
+  }
+}
+
+// -- toolbar -----------------------------------------------------------------
+function setPinned(label) {
+  const node = byId.get("w:" + label);
+  pinned = pinned === node ? null : node;
+  syncToolbar(); describe(pinned);
+}
+function syncToolbar() {
+  [...toolbar.children].forEach((b) =>
+    b.setAttribute("aria-pressed", String(pinned && pinned.id === "w:" + b.dataset.w)));
+}
+Object.keys(WF_AGENTS).forEach((w) => {
+  const b = el("button", "g-btn", w);
+  b.type = "button"; b.dataset.w = w; b.setAttribute("aria-pressed", "false");
+  b.addEventListener("click", () => setPinned(w));
+  toolbar.appendChild(b);
+});
+describe(null);
+
+// -- draw --------------------------------------------------------------------
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let settle = 0;
+
+function draw() {
+  const act = activeSet();
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  ctx.translate(W / 2, H / 2);
+
+  for (const e of edges) {
+    const on = !act || (act.has(e.s.id) && act.has(e.t.id));
+    ctx.globalAlpha = on ? (e.kind === "owns" ? 0.55 : 0.3) : 0.06;
+    ctx.strokeStyle = e.kind === "owns" ? PAL.tertiary : (e.s.tone || PAL.outline);
+    ctx.lineWidth = e.kind === "owns" ? 1.6 : 0.8;
+    ctx.beginPath(); ctx.moveTo(e.s.x, e.s.y); ctx.lineTo(e.t.x, e.t.y); ctx.stroke();
+  }
+
+  for (const n of nodes) {
+    const on = !act || act.has(n.id);
+    ctx.globalAlpha = on ? 1 : 0.13;
+
+    if (n.kind === "workflow") {
+      ctx.fillStyle = PAL.tertiary;
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, 6.284); ctx.fill();
+      ctx.globalAlpha = on ? 0.35 : 0.06;
+      ctx.strokeStyle = PAL.tertiary; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.r + 6, 0, 6.284); ctx.stroke();
+    } else if (n.kind === "agent") {
+      ctx.fillStyle = n.tone;
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, 6.284); ctx.fill();
+    } else if (n.orphan) {
+      ctx.strokeStyle = PAL.error; ctx.lineWidth = 1.4;
+      ctx.setLineDash([2.5, 2.5]);
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.r + 1, 0, 6.284); ctx.stroke();
+      ctx.setLineDash([]);
+    } else {
+      ctx.fillStyle = n.own ? PAL.primary : PAL.outline;
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, 6.284); ctx.fill();
+      if (n.own) {
+        ctx.globalAlpha = on ? 0.3 : 0.05;
+        ctx.strokeStyle = PAL.primary; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(n.x, n.y, n.r + 3.5, 0, 6.284); ctx.stroke();
+      }
+    }
+
+    // labels: always for workflows and personas, on demand for skills
+    const showLabel = n.kind !== "skill" || (act && act.has(n.id)) ||
+                      (hover && hover.id === n.id);
+    if (showLabel && on) {
+      ctx.globalAlpha = n.kind === "skill" ? 0.85 : 1;
+      ctx.fillStyle = n.kind === "workflow" ? PAL.onSurface
+                    : n.kind === "agent" ? n.tone : PAL.onVar;
+      ctx.font = (n.kind === "skill" ? "500 9.5px " : "600 11px ") +
+                 '"IBM Plex Mono", monospace';
+      ctx.textAlign = "center";
+      ctx.fillText(n.label, n.x, n.y - n.r - 6);
+    }
+  }
+  ctx.restore();
+}
+
+function frame() {
+  if (!reduce || settle < 260) { step(); settle++; }
+  draw();
+  requestAnimationFrame(frame);
+}
+if (reduce) { for (let i = 0; i < 260; i++) step(); }
+frame();
+
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+  readPalette();
+  nodes.forEach((n) => { if (n.kind === "agent") n.tone = PAL[n.label]; });
+});
+</script>

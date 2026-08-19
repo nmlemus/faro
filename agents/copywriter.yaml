@@ -1,0 +1,5 @@
+id: copywriter
+name: Copywriter
+model: sonnet
+role: "Writes the assets: posts, emails, landing pages, ads — in the brand voice."
+skills: [copywriting, copy-editing, emails, social, ads, ad-creative, lead-magnets, signup, cro, landing-page, social-by-platform, paywalls, popups, video, image]

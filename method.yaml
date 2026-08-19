@@ -1,0 +1,39 @@
+# THE METHOD — which bodies of knowledge this agency mounts.
+#
+# Switching vertical means changing this list. If tomorrow you want a data agency or a
+# development agency, add its repo here and `agency setup` vendors it pinned. Not one line
+# of code changes.
+#
+# Order matters: methods load in sequence and our own skills in `skills/` always go last, so
+# an own skill with the same name shadows the third-party one — you can correct or translate
+# someone else's method without touching the vendor or losing the pin.
+#
+# Fields per method:
+#   id          short name; the clone lands in .vendor/<id>-<ref>/
+#   repo        git URL
+#   ref         tag or branch. PIN IT. A method that moves on its own breaks deliverables.
+#   skills_dir  subdirectory holding the skills (each one a dir with a SKILL.md inside)
+#   tools_dir   optional: subdirectory with CLIs/integrations the agents may use
+#   license     so the agency can always answer where each piece came from
+
+methods:
+  - id: marketingskills
+    repo: https://github.com/coreyhaines31/marketingskills.git
+    ref: v2.10.0
+    skills_dir: skills
+    tools_dir: tools
+    license: "MIT — (c) 2025 Corey Haines"
+
+# Example of how another vertical would be added (uncomment and run `agency setup`):
+#
+#  - id: dataskills
+#    repo: https://github.com/someone/dataskills.git
+#    ref: v1.2.0
+#    skills_dir: skills
+#    license: "MIT"
+#
+# Two warnings when adding a method:
+#   1. Skill names are a flat namespace. If two methods ship `analytics`, the last one wins
+#      and `agency doctor` tells you.
+#   2. A bigger catalog is not free: the model picks from everything you show it. If you add
+#      200 skills, the personas in `agents/` have to narrow what each one sees.

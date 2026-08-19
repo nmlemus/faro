@@ -1,0 +1,2 @@
+# The runner's only non-stdlib dependency.
+PyYAML>=6.0

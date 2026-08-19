@@ -1,0 +1,95 @@
+# Content engine — from strategy to assets ready to publish.
+#
+# This is the recurring work: the one billed monthly. It ends in approved, schedulable
+# assets — never published without a human gate (house rule 5).
+
+id: content-engine
+name: Content engine
+description: Angles, calendar, assets written, edited and ready to schedule.
+
+# Deliverables of these jobs, if they exist for this client, are injected in full.
+# Without this the jobs run blind to each other and the engagement does not compound.
+builds_on: [website-audit, growth-audit, launch]
+deliverable: 04-assets/
+
+phases:
+  - id: angles
+    agent: strategist
+    produces: 01-angles.md
+    requires: []
+    task: |
+      Define what the brand will talk about, and why.
+
+      1. Read `brand.md` and whatever exists in `knowledge/` (past audits, previous work,
+         decisions already made). Do not repeat what has already been said.
+      2. Pick 3 to 5 **territories**: the subjects where this brand has a right to speak
+         because it knows something others do not. Not generic industry topics.
+      3. For each territory: who it speaks to, what problem it touches, what this brand says
+         that others do not, and what proof backs it.
+      4. Mark the FORBIDDEN topics: what the brand cannot claim without data, what is legally
+         unwise, and what it already said and went badly.
+
+      If `knowledge/` holds a previous audit, the territories must attack that audit's
+      findings. Content is not decoration: it is the execution of the plan.
+
+  - id: calendar
+    agent: channel-planner
+    produces: 02-calendar.md
+    requires: [01-angles.md]
+    gate: |
+      Review the calendar (02-calendar.md) before the assets get written. Check that the
+      volume is realistic for the client's actual capacity, and that each asset has its
+      channel and objective. Approve or reject with feedback.
+    task: |
+      Turn the territories into an executable calendar for the period in
+      `client.yaml → cadence` (if unset, four weeks).
+
+      For each asset: date, channel, the territory it comes from, format, objective, and the
+      metric it is judged on.
+
+      Be realistic about capacity. A calendar the client cannot sustain is worse than a small
+      one: they abandon it in week three. If the requested volume does not fit, propose the
+      one that does and say why.
+
+      Balance assets that capture existing demand with assets that create new demand. And
+      leave room to react — a 100% full calendar does not survive the first surprise.
+
+  - id: drafts
+    agent: copywriter
+    produces: 03-drafts.md
+    requires: [02-calendar.md]
+    task: |
+      Write the assets from the approved calendar. All of them, in one file, separated by a
+      header per asset with date, channel and objective.
+
+      Rules:
+      - In the voice of `brand.md`, and in `client.yaml → language`. If there is no voice
+        guide, infer it from what the client already published and say where you got it.
+      - No factual claim without backing. If an asset needs a number, that number comes from
+        `data/` or `knowledge/`. If you don't have it, change the claim.
+      - Where the format justifies it (email subject, ad headline), leave variants and say
+        which you recommend.
+      - Respect the forbidden topics from 01-angles.md.
+      - Use the `social-by-platform` skill for anything going to a specific network: what
+        works differs by platform.
+
+  - id: edit
+    agent: editor
+    produces: 04-assets/README.md
+    requires: [03-drafts.md]
+    gate: |
+      Review the final assets in 04-assets/. These are what will be published on the client's
+      accounts. Check the editor's verdict: if there is any P0, do NOT approve. Approving here
+      clears them for scheduling.
+    task: |
+      Run the final filter and leave the assets ready to publish.
+
+      1. Check every draft against your checklist: unbacked claims, voice, coherence with the
+         approved angles, actionability, risk, language.
+      2. Write each ALREADY-CORRECTED asset as its own file inside `04-assets/`, named
+         `<date>-<channel>-<slug>.md`, with its frontmatter (date, channel, objective).
+      3. Write `04-assets/README.md` with: the table of all assets, your verdict per asset
+         with severities, and at the very top the **P0 / P1 / P2** count.
+
+      **If there is any P0, say it at the very top — do not bury it in a table.** Nothing
+      ships with an open P0.

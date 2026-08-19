@@ -1,0 +1,157 @@
+# Website audit — the door-opener when the client gives you nothing but a URL.
+#
+# This is the most common first conversation: no analytics access, no CSVs, no connected
+# accounts. Just a website.
+#
+# WHAT CHANGES vs `growth-audit`: evidence stops being "a query you ran" and becomes
+# **the verbatim quote from the page, with its URL, read in this session**. House rule 1
+# still applies with the same force — what changes is what counts as an origin.
+#
+# WHAT THIS JOB CANNOT SAY, and must say so in the deliverable: nothing about traffic,
+# conversion, CAC, retention or revenue. A website reveals none of those. Promising them
+# without data is exactly what this agency does not do.
+
+id: website-audit
+name: Website audit
+description: Positioning, conversion and discoverability diagnosis from the site alone, with no access to internal data.
+deliverable: 05-website-audit.md
+
+phases:
+  - id: capture
+    agent: researcher
+    produces: 01-capture.md
+    requires: []
+    task: |
+      Gather the evidence. In this phase you **do not opine**: you record what the site says.
+
+      1. Start at the home page from `client.yaml → website`. Walk from there to the pages
+         that matter: product/services, pricing, about, cases, blog, contact. If there is a
+         `sitemap.xml` or `robots.txt`, read them and note what they reveal.
+      2. For **every page** you read, record: URL, title, the verbatim H1, the verbatim
+         subheading, the verbatim CTAs (exact button text and where it goes), and what proof
+         it offers (logos, testimonials, numbers, case studies).
+      3. Note the technical signals visible without tooling: declared language, meta
+         description, structured data (schema.org) if present in the HTML, whether there is
+         a blog and how often it publishes, and what is in the `<head>`.
+      4. List what you looked for and did NOT find: pricing, cases, author, contact, policy,
+         changelog. Absence is a finding.
+
+      Rules:
+      - **Everything you write carries the exact URL you took it from.** If you did not read
+        the page in this session, do not cite it.
+      - Copy text **verbatim**, in quotes. Do not paraphrase: later phases will judge the
+        real copy, and your summary contaminates it.
+      - If a page fails to load or the fetch returns it incomplete, record that. Do not fill
+        in what you assume it would say.
+
+  - id: positioning
+    agent: strategist
+    produces: 02-positioning.md
+    requires: [01-capture.md]
+    gate: |
+      Review the positioning analysis (02-positioning.md) before it turns into
+      recommendations. Check above all: does every judgement quote a verbatim line from the
+      site, or are there opinions with no backing in the capture? Approve, or reject with
+      feedback.
+    task: |
+      Judge the positioning using what the site actually says. Be direct: this document
+      becomes the sales conversation, and hedging helps nobody.
+
+      Answer each of these, quoting the verbatim line that supports it:
+
+      1. **In five seconds, is it clear what this does and who it is for?** If a new visitor
+         cannot answer that from the H1 and subheading alone, say so with the quote.
+      2. **Who is it for?** Is there a named ICP, or does it address "companies"? A site that
+         speaks to everyone speaks to no one.
+      3. **What does it compete against, and why choose it?** Include the do-nothing
+         alternative, which is usually the real competitor.
+      4. **What proof does it offer?** Logos without a case, testimonials without a name and
+         numbers without a source are not proof: they are decoration. Be hard here.
+      5. **What does it promise that it cannot back?** Any claim on the site without visible
+         support is a client risk, and finding it is part of this audit's value.
+      6. **Does it sound like someone, or like a template?** If the copy could be pasted onto
+         a competitor's site unnoticed, that is a serious finding.
+
+      Close with the 3 most expensive positioning problems, ordered by what they cost the
+      business, and why.
+
+  - id: conversion
+    agent: channel-planner
+    produces: 03-conversion.md
+    requires: [01-capture.md, 02-positioning.md]
+    task: |
+      Follow the path from arrival to action, and say where it leaks.
+
+      1. **Map the journey**: arrival → what they understand → what action is available →
+         what happens next. Do it for the two or three most likely visitor types.
+      2. **The CTAs**: how many per page? Do they compete? Does the text say what will
+         happen, or does it say "Submit"? Is the primary action obvious or does it need hunting?
+      3. **The friction**: long forms, asking for data before giving value, hidden pricing,
+         "contact us" as the only door. Each friction with its quote.
+      4. **What is missing**: is there a reason to come back if they don't buy today? A lead
+         magnet, a newsletter, anything? Most traffic is not ready to buy and leaves no trace.
+      5. **Pricing**: if present, is it understandable and can you decide with it? If absent,
+         say what hiding it costs for this kind of business.
+
+      Use the `cro`, `signup`, `pricing` and `landing-page` skills as method. Every problem
+      carries the quote from the site and **what it would take to fix it**, concretely — not
+      "improve the CTA".
+
+  - id: discoverability
+    agent: researcher
+    produces: 04-discoverability.md
+    requires: [01-capture.md]
+    task: |
+      How does anyone reach this site if they don't already know it? Answer with evidence.
+
+      1. **Structure and technical**: URL architecture, titles and meta descriptions,
+         headings, structured data (schema.org), sitemap, declared language. Use the
+         `seo-audit`, `site-architecture` and `schema` skills as method.
+      2. **Machine readability**: more people ask a model instead of searching. Does this
+         site give answers a model can cite — what it does, who for, what it costs — or does
+         it have to be inferred from images and vague phrasing? Use the `ai-seo` skill.
+      3. **Content**: is there any? What is it about? Does it address the questions its ICP
+         asks before buying, or does it talk about the company?
+      4. **External presence**: search for the brand. Does it appear? Where? What do others
+         say? Cite what you find with its URL.
+      5. **Competition**: look at 2 or 3 real competitors in the same market and say what
+         they do to be found that this site does not.
+
+      Without Semrush/Ahrefs credentials (check `client.yaml → tools`) **do not invent search
+      volumes or rankings**. Say what can be seen without tooling and what would need to be
+      connected to measure it.
+
+  - id: report
+    agent: strategist
+    produces: 05-website-audit.md
+    requires: [02-positioning.md, 03-conversion.md, 04-discoverability.md]
+    gate: |
+      Review the final audit (05-website-audit.md). This is what the client sees and it is
+      the sales asset. Check: does every finding carry its quote from the site? Is the
+      "what we could not know without data" notice there? Is the plan actionable this week?
+      Is it written in the client's language?
+    task: |
+      Write the FINAL DELIVERABLE, addressed to the client. An owner or a marketing director
+      reads this, not a technician, and they must be able to decide with it.
+
+      Structure:
+
+      1. **What we looked at and what we did not.** Up top, honestly: we reviewed the public
+         site. **We had no access to analytics, conversion data or revenue**, so this audit
+         says nothing about traffic, conversion or CAC. Name exactly what would need to be
+         connected to talk about that.
+      2. **The 3 most expensive problems**, in under a page. If they only read this, they
+         should already know what to do. Each with the verbatim quote that proves it.
+      3. **Findings by severity:**
+         - **P0** — costing them customers right now (unclear what it does, no possible
+           action, a risky claim).
+         - **P1** — growth ceiling (they aren't found, no reason to return).
+         - **P2** — recorded debt.
+      4. **What we would do, in order.** Each action with: what changes, why, and **how you
+         verify it worked**. Mark which are done this week and which need a project.
+      5. **What we would need for the next layer.** The accesses that would turn this into a
+         growth audit with numbers. This section is what opens the next engagement: be
+         concrete and explain what each access would answer.
+
+      Write it in `client.yaml → language`. No agency jargon. Direct but not cruel: the goal
+      is that the client wants to fix it, not that they get defensive.

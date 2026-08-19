@@ -1,0 +1,101 @@
+# Launch — from "we're shipping this" to a sequence ready to execute.
+#
+# Works for a new product, a major feature, or a repositioning. Ends in a day-by-day plan
+# with the assets written and approved.
+
+id: launch
+name: Launch
+description: Positioning, offer, day-by-day plan and the launch assets.
+
+# Deliverables of these jobs, if they exist for this client, are injected in full.
+# Without this the jobs run blind to each other and the engagement does not compound.
+builds_on: [website-audit, growth-audit]
+deliverable: 05-launch-plan.md
+
+phases:
+  - id: positioning
+    agent: strategist
+    produces: 01-positioning.md
+    requires: []
+    gate: |
+      Review the positioning (01-positioning.md). The whole launch rests on this: if it is
+      wrong, the assets will be well written and say the wrong thing. Approve or reject with
+      feedback.
+    task: |
+      Define what is being launched and why anyone would care.
+
+      1. What is launching, in one sentence an outsider understands.
+      2. For whom, concretely. A segment, not "everyone who...".
+      3. What it competes against — including the do-nothing alternative, which is usually
+         the real competitor.
+      4. What changes for that customer. The outcome, not the feature.
+      5. What proof backs it: data, case, demo, guarantee. **If there is no proof, say so** —
+         a launch without proof is positioned differently, not inflated.
+      6. The three messages repeated across every asset.
+
+      Read `knowledge/` first: if there is a prior audit or strategy, this must be coherent
+      with them or explain why it changes.
+
+  - id: offer
+    agent: strategist
+    produces: 02-offer.md
+    requires: [01-positioning.md]
+    task: |
+      Build the concrete offer.
+
+      What exactly is offered, at what price (or under what model if price is not set here),
+      with what bonus or guarantee if applicable, with what reason to act now, and how long
+      it lasts if time-limited.
+
+      The reason to act now has to be **real**. Manufactured urgency is visible and burns the
+      brand. If there is no genuine reason, say so and propose the offer without urgency.
+
+      Use the `offers` and `pricing` skills as method.
+
+  - id: plan
+    agent: channel-planner
+    produces: 03-plan.md
+    requires: [02-offer.md]
+    gate: |
+      Review the day-by-day plan (03-plan.md) before the assets get written. Check the volume
+      is sustainable and the dependencies are correctly ordered.
+    task: |
+      Build the day-by-day plan: pre-launch, launch day, and after.
+
+      For each day: what ships, on what channel, with what asset, for what objective.
+      Mark the dependencies — what must be ready before what.
+      State what gets measured during, and the criterion for extending or cutting.
+
+      Be realistic: prefer a small launch executed fully over a large one abandoned halfway.
+
+  - id: assets
+    agent: copywriter
+    produces: 04-assets.md
+    requires: [03-plan.md]
+    task: |
+      Write every asset in the plan: emails, posts, landing copy, ads, scripts.
+
+      Each headed with its day, channel and objective, exactly as they appear in 03-plan.md.
+      In the voice of `brand.md`, in `client.yaml → language`, carrying the three messages
+      from 01-positioning.md, and without a single factual claim that lacks backing.
+
+      Use `landing-page` for any landing copy and `social-by-platform` for anything going to
+      a specific network.
+
+  - id: review
+    agent: editor
+    produces: 05-launch-plan.md
+    requires: [04-assets.md]
+    gate: |
+      Review the final package (05-launch-plan.md). This is what gets executed and what the
+      client sees. If the editor reports any P0, do NOT approve.
+    task: |
+      Assemble the final package that ships and gets executed.
+
+      1. Run every asset through your checklist: claims, voice, coherence with the approved
+         positioning, actionability, risk, language.
+      2. Write the final document with: the launch summary, the day-by-day calendar, and each
+         ALREADY-CORRECTED asset ready to copy and paste.
+      3. At the very top, the **P0 / P1 / P2** count and your verdict.
+
+      **Nothing ships with an open P0.** If there are P0s, list them with the exact correction.
