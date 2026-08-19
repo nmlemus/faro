@@ -1,0 +1,259 @@
+#!/usr/bin/env python3
+"""Engine worker: claims a phase from Postgres, runs it with claude, streams
+activity events, persists the artifact, stops at gates. Stateless — scale by
+running more of these.
+
+    python3 engine/worker.py --once            # claim and run one phase, exit
+    python3 engine/worker.py                   # loop
+    python3 engine/worker.py enqueue <client-slug> <workflow>
+
+AGENCY_ENGINE_FAKE=1 skips claude and writes a canned artifact — plumbing tests.
+"""
+import importlib.machinery
+import json
+import os
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+import db
+
+ROOT = Path(__file__).resolve().parent.parent
+core = importlib.machinery.SourceFileLoader("agency_cli", str(ROOT / "bin" / "agency")).load_module()
+
+WORKER = f"{socket.gethostname()}:{os.getpid()}"
+CLAUDE = os.environ.get("AGENCY_CLAUDE", "claude")
+MODEL = os.environ.get("AGENCY_MODEL", "sonnet")
+FAKE = bool(os.environ.get("AGENCY_ENGINE_FAKE"))
+
+
+# ── context assembly (the DB-era build_prompt) ──────────────────────────────
+
+def client_context(client):
+    tools = "\n".join(f"  {k}: {'true' if v else 'false'}"
+                      for k, v in (client.get("tools") or {}).items())
+    return f"""id: {client['slug']}
+name: {client['name']}
+website: "{client.get('website') or ''}"
+language: {client.get('language') or 'English'}
+business: "{client.get('business') or ''}"
+icp: "{client.get('icp') or ''}"
+cadence: "{client.get('cadence') or ''}"
+tools:
+{tools or '  {}'}"""
+
+
+def prior_block(run, wf):
+    out = ""
+    # artifacts already produced in THIS run (the phase's requires)
+    arts = db.select("artifacts", f"run_id=eq.{run['id']}&select=path,content&order=path")
+    for a in arts:
+        out += f"\n\n===== {a['path']} =====\n{a['content']}"
+    # deliverables of builds_on jobs for the same client
+    for dep in (wf.get("builds_on") or []):
+        rows = db.select(
+            "artifacts",
+            f"client_id=eq.{run['client_id']}&select=path,content,job_runs!inner(job_id,jobs!inner(workflow_id))"
+            f"&job_runs.jobs.workflow_id=eq.{dep}")
+        wfs = core.workflows()
+        deliverable = wfs.get(dep, {}).get("deliverable")
+        for a in rows:
+            if a["path"] == deliverable:
+                out += (f"\n\n# Previous work: {dep}\nDo not contradict it silently — "
+                        f"disagree explicitly if you must.\n\n===== {dep} -> {a['path']} =====\n{a['content']}")
+    return out
+
+
+def build_prompt(phase, run, client, wf, out_file):
+    catalog = core.skill_catalog()
+    ag = core.agents()[phase["agent"]]
+    language = client.get("language") or "English"
+    mine = [s for s in ag.get("skills", []) if s in catalog]
+    lines = [f"- `{s}` — {catalog[s][0]}\n  -> `{catalog[s][1] / 'SKILL.md'}`" for s in mine]
+    wf_phase = next(p for p in wf["phases"] if p["id"] == phase["phase_id"])
+    fb = (f"\n\n## Feedback from the previous gate — REDO this phase addressing it\n\n{phase['feedback']}\n"
+          if phase.get("feedback") else "")
+    brand = (client.get("brand") or {}).get("md", "")
+
+    return f"""{(ROOT / 'AGENCY.md').read_text()}
+
+# Client: {client['name']}
+
+**Deliverable language: {language}.** You think and work in English; what you write into
+the artifact ships in {language}. That is house rule 4 and it is not optional.
+
+===== client profile =====
+{client_context(client)}
+
+===== brand.md =====
+{brand}
+{prior_block(run, wf)}
+
+# Your skills
+
+Read the ones that apply with the Read tool from the path under each, follow them, and
+name in the deliverable which you used.
+
+{chr(10).join(lines)}
+
+{core.tools_block()}
+
+# Job: {wf['name']} — phase `{phase['phase_id']}`
+{fb}
+## Your task
+
+{wf_phase['task']}
+
+## How this phase closes
+
+Write the result to **`{out_file}`**. That file is the phase's deliverable: it does not
+exist until it is on disk. Do not answer with the content in chat. When done, reply in
+two or three lines with what you did and what was declared as a hole.
+"""
+
+
+# ── event streaming ─────────────────────────────────────────────────────────
+
+def emit(phase, etype, payload):
+    db.insert("activity_events", [{
+        "org_id": phase["org_id"], "client_id": phase["client_id"],
+        "run_id": phase["run_id"], "phase_id": phase["id"],
+        "type": etype, "payload": payload,
+    }])
+
+
+def tool_line(block):
+    name = block.get("name", "?")
+    inp = block.get("input") or {}
+    for k in ("file_path", "command", "url", "query", "pattern", "name", "description"):
+        v = inp.get(k)
+        if isinstance(v, str) and v.strip():
+            v = " ".join(v.split())
+            return f"{name}: {v[:120]}"
+    return name
+
+
+def run_claude_streaming(phase, persona, prompt, cwd):
+    cmd = [CLAUDE, "-p", "--model", MODEL, "--system-prompt", persona,
+           "--permission-mode", "bypassPermissions",
+           "--output-format", "stream-json", "--verbose",
+           *[a for m in core.methods() for a in ("--add-dir", str(m["dir"]))],
+           "--add-dir", str(ROOT / "skills"), "--add-dir", tempfile.gettempdir()]
+    proc = subprocess.Popen(cmd, cwd=cwd, text=True, stdin=subprocess.PIPE,
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    proc.stdin.write(prompt)
+    proc.stdin.close()
+    for line in proc.stdout:
+        s = line.strip()
+        if not s.startswith("{"):
+            continue
+        try:
+            ev = json.loads(s)
+        except json.JSONDecodeError:
+            continue
+        t = ev.get("type")
+        if t == "system" and ev.get("subtype") == "init":
+            emit(phase, "session_start", {"model": ev.get("model", "")})
+        elif t == "assistant":
+            for b in (ev.get("message") or {}).get("content", []):
+                if b.get("type") == "tool_use":
+                    emit(phase, "tool", {"line": tool_line(b)})
+                elif b.get("type") == "text" and (b.get("text") or "").strip():
+                    txt = " ".join(b["text"].split())
+                    emit(phase, "text", {"line": txt[:200]})
+        elif t == "result":
+            emit(phase, "done", {"duration_ms": ev.get("duration_ms")})
+    return proc.wait()
+
+
+# ── the work loop ───────────────────────────────────────────────────────────
+
+def run_one():
+    claimed = db.rpc("claim_phase", {"p_worker": WORKER})
+    if not claimed:
+        return False
+    phase = claimed[0]
+    run = db.select("job_runs", f"id=eq.{phase['run_id']}&select=*")[0]
+    client = db.select("clients", f"id=eq.{phase['client_id']}&select=*")[0]
+    job = db.select("jobs", f"id=eq.{run['job_id']}&select=*")[0]
+    wf = core.workflows()[job["workflow_id"]]
+    print(f"[{WORKER}] {client['slug']} / {job['workflow_id']} / {phase['phase_id']}")
+
+    out_dir = Path(tempfile.mkdtemp(prefix="agency-phase-"))
+    out_file = out_dir / Path(phase["produces"]).name
+
+    try:
+        if FAKE:
+            emit(phase, "session_start", {"model": "fake"})
+            out_file.write_text(f"# {phase['produces']}\n\n(fake artifact for plumbing tests)\n")
+            emit(phase, "done", {"duration_ms": 1})
+            rc = 0
+        else:
+            persona = core.agents()[phase["agent"]]["persona"]
+            prompt = build_prompt(phase, run, client, wf, out_file)
+            # workspace: the client's filesystem folder if it still exists (data/),
+            # else a scratch dir — transitional until data files live in Storage
+            ws = ROOT / "clients" / client["slug"]
+            cwd = str(ws if ws.is_dir() else out_dir)
+            rc = run_claude_streaming(phase, persona, prompt, cwd)
+
+        if rc == 0 and out_file.is_file():
+            db.rpc("finish_phase", {"p_phase": phase["id"], "p_ok": True,
+                                    "p_content": out_file.read_text(), "p_error": None})
+            print(f"  done -> {phase['produces']}")
+        else:
+            db.rpc("finish_phase", {"p_phase": phase["id"], "p_ok": False, "p_content": None,
+                                    "p_error": f"claude exited {rc}, artifact "
+                                               f"{'missing' if not out_file.is_file() else 'ok'}"})
+            print("  FAILED")
+    except Exception as e:
+        db.rpc("finish_phase", {"p_phase": phase["id"], "p_ok": False,
+                                "p_content": None, "p_error": str(e)[:500]})
+        raise
+    return True
+
+
+def enqueue(slug, workflow_id, run_key="main"):
+    client = db.select("clients", f"slug=eq.{slug}&select=*")[0]
+    wf = core.workflows()[workflow_id]
+    # Preflight, DB-era: same rules as the CLI. Data files are transitional
+    # (still on disk) until they move to Storage.
+    if workflow_id == "website-audit" and not (client.get("website") or "").strip():
+        raise SystemExit(f"'{slug}' has no website and website-audit comes entirely from it")
+    if workflow_id == "growth-audit":
+        data = ROOT / "clients" / slug / "data"
+        if not data.is_dir() or not any(f.suffix.lower() in (".csv", ".tsv", ".json", ".xlsx")
+                                        for f in data.glob("*")):
+            raise SystemExit(f"'{slug}' has no data files; growth-audit needs them")
+    job = db.insert("jobs", [{"org_id": client["org_id"], "client_id": client["id"],
+                              "workflow_id": workflow_id}],
+                    upsert_on="client_id,workflow_id")[0]
+    run = db.insert("job_runs", [{"job_id": job["id"], "org_id": client["org_id"],
+                                  "client_id": client["id"], "run_key": run_key}],
+                    upsert_on="job_id,run_key")[0]
+    for i, ph in enumerate(wf["phases"]):
+        db.insert("phases", [{
+            "run_id": run["id"], "org_id": client["org_id"], "client_id": client["id"],
+            "seq": i, "phase_id": ph["id"], "agent": ph["agent"], "produces": ph["produces"],
+            "gate_class": ph.get("gate_class") if ph.get("gate") else None,
+            "gate_text": (ph.get("gate") or "").strip() or None,
+            "status": "pending" if i == 0 else "blocked",
+        }], upsert_on="run_id,phase_id")
+    print(f"enqueued {slug}/{workflow_id} run={run['id']}")
+    return run["id"]
+
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "enqueue":
+        enqueue(sys.argv[2], sys.argv[3])
+    elif "--once" in sys.argv:
+        run_one() or print("nothing to claim")
+    else:
+        print(f"worker {WORKER} polling…")
+        while True:
+            if not run_one():
+                time.sleep(3)

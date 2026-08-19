@@ -70,6 +70,12 @@ def main():
             sf = jd / "state.json"
             if sf.is_file():
                 state = json.loads(sf.read_text()).get("phases", {})
+            # A dir with no state and no artifacts is debris (e.g. a failed
+            # preflight created it) — importing it would enqueue ghost work.
+            has_artifacts = any(f.suffix == ".md" and not f.name.startswith(".")
+                                for f in jd.glob("*.md"))
+            if not state and not has_artifacts:
+                continue
 
             if wf is None:
                 # ad-hoc deliverables: keep them as artifacts on a pseudo-run
