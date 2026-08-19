@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import ChartBlock from "@/components/ChartBlock";
+import { prepDoc } from "@/lib/md";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Phase = {
@@ -43,6 +45,20 @@ function humanizeLegacy(line: string): string {
 
 const GLYPH: Record<string, string> = {
   done: "✓", awaiting_gate: "⏸", running: "●", failed: "✕", pending: "·", blocked: "·",
+};
+
+const mdComponents = {
+  pre: (props: React.ComponentProps<"pre">) => {
+    const child = props.children as React.ReactElement<{ className?: string }> | undefined;
+    if (child && typeof child === "object" && "props" in child
+        && child.props.className?.includes("language-chart")) return <>{props.children}</>;
+    return <pre {...props} />;
+  },
+  code: (props: React.ComponentProps<"code">) => {
+    if (props.className?.includes("language-chart"))
+      return <ChartBlock source={String(props.children ?? "")} />;
+    return <code {...props} />;
+  },
 };
 
 export default function RunView(props: {
@@ -210,7 +226,7 @@ export default function RunView(props: {
               </div>
             </div>
             <div className="doc">
-              <Markdown remarkPlugins={[remarkGfm]}>{artifact.content}</Markdown>
+              <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{prepDoc(artifact.content)}</Markdown>
             </div>
           </section>
         )}

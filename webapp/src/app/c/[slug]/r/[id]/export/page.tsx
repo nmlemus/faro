@@ -1,11 +1,27 @@
 import { notFound } from "next/navigation";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import ChartBlock from "@/components/ChartBlock";
+import { prepDoc } from "@/lib/md";
 import { supabaseServer } from "@/lib/supabase/server";
 import PrintButton from "./print-button";
 
 /* Client-ready view of one deliverable: the document, the signature, nothing else.
    Always light, print-first — File > Save as PDF gives the deck-ready artifact. */
+
+const mdComponents = {
+  pre: (props: React.ComponentProps<"pre">) => {
+    const child = props.children as React.ReactElement<{ className?: string }> | undefined;
+    if (child && typeof child === "object" && "props" in child
+        && child.props.className?.includes("language-chart")) return <>{props.children}</>;
+    return <pre {...props} />;
+  },
+  code: (props: React.ComponentProps<"code">) => {
+    if (props.className?.includes("language-chart"))
+      return <ChartBlock source={String(props.children ?? "")} />;
+    return <code {...props} />;
+  },
+};
 
 export default async function ExportPage({ params, searchParams }: {
   params: Promise<{ slug: string; id: string }>;
@@ -62,7 +78,7 @@ export default async function ExportPage({ params, searchParams }: {
           </span>
         </div>
         <div className="doc" style={{ maxWidth: "none" }}>
-          <Markdown remarkPlugins={[remarkGfm]}>{artifact.content}</Markdown>
+          <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{prepDoc(artifact.content)}</Markdown>
         </div>
         <div className="export-foot">
           <span>

@@ -31,6 +31,25 @@ One line per number. `channel` empty means account-wide. `period` is an ISO week
 (2026-W34) or month (2026-08). Only measured numbers go here — an inferred or
 estimated figure never enters a metrics block.
 
+## 1c. Show comparisons and trends as charts
+
+When a deliverable compares quantities (budget per channel, spend vs plan) or
+shows a trend over periods, add a chart fence next to the table — the portal
+renders it natively. Only numbers already present in the document may appear
+in a chart; a chart visualizes, it never introduces new figures.
+
+```chart
+type: bar            # or: line
+title: Presupuesto mensual por canal
+unit: usd            # usd, %, count …
+series: Plan, Real   # only when rows carry more than one value
+Meta, 1200, 1198
+Google, 700, 701
+```
+
+One row per label: `label, value` (or several values matching `series`).
+For `line`, rows are periods in order.
+
 ## 2. Separate what you measured from what you inferred
 
 Every number carries its **period** and its **segment**. Every recommendation says whether
