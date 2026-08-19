@@ -36,7 +36,7 @@ export default async function ClientPage({ params }: { params: Promise<{ slug: s
 
   const { data: metrics } = await supabase
     .from("metrics")
-    .select("metric,channel,period,value,unit,source_path,run_id")
+    .select("metric,channel,period,value,unit,source_path,run_id,created_at")
     .eq("client_id", client.id)
     .order("period", { ascending: true });
 

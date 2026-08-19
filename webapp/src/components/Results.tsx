@@ -6,6 +6,7 @@ import Link from "next/link";
 type Row = {
   metric: string; channel: string; period: string; value: number;
   unit: string | null; source_path: string; run_id: string | null;
+  created_at: string;
 };
 
 const DOWN_IS_GOOD = new Set(["cac", "cpc", "cpm", "cpa", "cpl", "churn", "bounce_rate"]);
@@ -41,8 +42,16 @@ function Spark({ values }: { values: number[] }) {
 export default function Results({ rows, slug }: { rows: Row[]; slug: string }) {
   // group into series by metric+channel, ordered by period (string sort works
   // within one scheme: 2026-W33 < 2026-W34, 2026-07 < 2026-08)
-  const series = new Map<string, Row[]>();
+  // the same number may be reported by more than one deliverable (compilation
+  // and final report) — one point per period, the most recent write wins
+  const byPoint = new Map<string, Row>();
   for (const r of rows) {
+    const k = `${r.metric}|${r.channel}|${r.period}`;
+    const prev = byPoint.get(k);
+    if (!prev || r.created_at > prev.created_at) byPoint.set(k, r);
+  }
+  const series = new Map<string, Row[]>();
+  for (const r of byPoint.values()) {
     const k = `${r.metric}|${r.channel}`;
     if (!series.has(k)) series.set(k, []);
     series.get(k)!.push(r);
