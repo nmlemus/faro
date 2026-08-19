@@ -657,6 +657,10 @@ def run_claude(persona, prompt, cwd):
            "--permission-mode", PERMISSION_MODE,
            *[a for m in methods() for a in ("--add-dir", str(m["dir"]))],
            "--add-dir", str(ROOT / "skills")]
+    if os.environ.get("AGENCY_STREAM"):
+        # Under the web console we stream events so the activity feed has
+        # something to show WHILE a phase runs — plain -p only prints at the end.
+        cmd += ["--output-format", "stream-json", "--verbose"]
     sys.stdout.flush()
     r = subprocess.run(cmd, cwd=str(cwd), text=True, input=prompt)
     return r.returncode
@@ -899,7 +903,18 @@ def cmd_serve(args):
     def is_running(client, wid):
         with runs_lock:
             proc = runs.get((client, wid))
-            return proc is not None and proc.poll() is None
+            if proc is not None and proc.poll() is None:
+                return True
+        # The server may have restarted while a run was alive: fall back to the
+        # pid file the launcher writes. A dead pid answers False on its own.
+        pidf = job_dir(client, wid) / "run.pid"
+        if pidf.is_file():
+            try:
+                os.kill(int(pidf.read_text().strip()), 0)
+                return True
+            except (ValueError, ProcessLookupError, PermissionError):
+                return False
+        return False
 
     def job_files(jd):
         """Deliverable files of a job: top-level .md plus one level of subdirs
@@ -962,6 +977,46 @@ def cmd_serve(args):
                 })
         return payload
 
+    def _tool_line(block):
+        name = block.get("name", "?")
+        inp = block.get("input") or {}
+        for k in ("file_path", "command", "url", "query", "pattern", "name", "description"):
+            v = inp.get(k)
+            if isinstance(v, str) and v.strip():
+                v = " ".join(v.split())
+                return f"{name}: {v[:110]}" + ("…" if len(v) > 110 else "")
+        return name
+
+    def humanize_log(raw):
+        """stream-json lines -> one readable line per action. Non-JSON lines
+        (the runner's own phase headers, gate banners) pass through as-is."""
+        out = []
+        for line in raw.splitlines():
+            s = line.strip()
+            if not s:
+                continue
+            if not s.startswith("{"):
+                out.append(s)
+                continue
+            try:
+                ev = json.loads(s)
+            except json.JSONDecodeError:   # a line still being written
+                continue
+            t = ev.get("type")
+            if t == "system" and ev.get("subtype") == "init":
+                out.append(f"· agent session started ({ev.get('model', '')})")
+            elif t == "assistant":
+                for b in (ev.get("message") or {}).get("content", []):
+                    if b.get("type") == "tool_use":
+                        out.append("▸ " + _tool_line(b))
+                    elif b.get("type") == "text" and (b.get("text") or "").strip():
+                        txt = " ".join(b["text"].split())
+                        out.append("✎ " + txt[:160] + ("…" if len(txt) > 160 else ""))
+            elif t == "result":
+                dur = ev.get("duration_ms")
+                out.append("✓ agent session finished" + (f" ({dur // 1000}s)" if dur else ""))
+        return "\n".join(out[-150:])
+
     class Handler(http.server.BaseHTTPRequestHandler):
         def log_message(self, *a):  # keep the terminal quiet
             pass
@@ -1023,7 +1078,8 @@ def cmd_serve(args):
                 log = jd / "run.log"
                 tail = ""
                 if log.is_file():
-                    tail = log.read_text(encoding="utf8", errors="replace")[-4000:]
+                    raw = log.read_text(encoding="utf8", errors="replace")[-400_000:]
+                    tail = humanize_log(raw)
                 self._json({"running": is_running(client, wid), "log": tail})
             else:
                 self._bad("no such endpoint", 404)
@@ -1049,8 +1105,9 @@ def cmd_serve(args):
                 proc = subprocess.Popen(
                     [sys.executable, str(Path(__file__).resolve()), "run", client, wid],
                     stdout=log, stderr=subprocess.STDOUT,
-                    env={**os.environ, "NO_COLOR": "1"},
+                    env={**os.environ, "NO_COLOR": "1", "AGENCY_STREAM": "1"},
                 )
+                (jd / "run.pid").write_text(str(proc.pid), encoding="utf8")
                 with runs_lock:
                     runs[(client, wid)] = proc
                 self._json({"ok": True})

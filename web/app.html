@@ -153,6 +153,7 @@ button { font: inherit; cursor: pointer; }
 }
 .ph:hover { background: var(--s-mid); }
 .ph .pin { width: 12px; height: 12px; border-radius: 999px; justify-self: center; }
+.ph .pin.spin { animation: pulse 1s ease-in-out infinite; }
 .ph .nm { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .ph .nm b { font-size: .92rem; }
 .ph .nm span { font-family: "IBM Plex Mono", monospace; font-size: .7rem; color: var(--ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -279,6 +280,16 @@ function jobSummary(wf, job) {
   if (done > 0) return { label: `${done}/${wf.phases.length} phases`, cls: "idle", gatePhase: null };
   return { label: "not started", cls: "idle", gatePhase: null };
 }
+function runningPhaseId(wf, job) {
+  // The runner executes the first phase that is not done and not waiting at a
+  // gate — so while the subprocess is alive, that phase is the one running.
+  if (!job || !job.running) return null;
+  for (const ph of wf.phases) {
+    const st = (job.phases[ph.id] || {}).status;
+    if (st !== "done" && st !== "awaiting-gate") return ph.id;
+  }
+  return null;
+}
 const gateCount = (c) => {
   let n = 0;
   for (const wf of STATE.workflows) {
@@ -399,12 +410,13 @@ function renderMain() {
     const card = el("button", "map-card" + (ui.job === wf.id ? " on" : "") + (s.cls === "gate" ? " gated" : ""));
     card.appendChild(el("div", "t", wf.id));
     const dots = el("div", "dots");
+    const rp = runningPhaseId(wf, job);
     for (const ph of wf.phases) {
       const st = job ? (job.phases[ph.id] || {}).status : undefined;
-      const d = el("span", "dot" +
-        (st === "done" ? " done" : st === "awaiting-gate" ? " gate" : st === "failed" ? " failed" : ""));
-      if (job && job.running && !st) d.className = "dot run";
-      dots.appendChild(d);
+      let cls = st === "done" ? " done" : st === "awaiting-gate" ? " gate"
+              : st === "failed" ? " failed" : "";
+      if (ph.id === rp) cls = " run";
+      dots.appendChild(el("span", "dot" + cls));
     }
     card.appendChild(dots);
     card.appendChild(el("span", "chip " + s.cls, s.label));
@@ -495,19 +507,23 @@ function renderJob(c, wf) {
 
   // phase list
   const phases = el("div", "phases");
+  const rp = runningPhaseId(wf, job);
   for (const ph of wf.phases) {
     const st = job ? (job.phases[ph.id] || {}).status : undefined;
+    const isRunning = ph.id === rp;
     const row = el("button", "ph");
-    const pin = el("span", "pin");
-    pin.style.background = st === "done" ? "var(--ok)" : st === "awaiting-gate" ? "var(--gate)"
+    const pin = el("span", "pin" + (isRunning ? " spin" : ""));
+    pin.style.background = isRunning ? "var(--primary)"
+      : st === "done" ? "var(--ok)" : st === "awaiting-gate" ? "var(--gate)"
       : st === "failed" ? "var(--err)" : "var(--s-highest)";
     row.appendChild(pin);
     const nm = el("div", "nm");
     nm.appendChild(el("b", null, ph.id + (ph.gate ? "  ⏸" : "")));
     nm.appendChild(el("span", null, ph.agent + " → " + ph.produces));
     row.appendChild(nm);
-    row.appendChild(el("span", "chip " + (st === "done" ? "done" : st === "awaiting-gate" ? "gate" : st === "failed" ? "failed" : "idle"),
-      st || "pending"));
+    row.appendChild(el("span",
+      "chip " + (isRunning ? "run" : st === "done" ? "done" : st === "awaiting-gate" ? "gate" : st === "failed" ? "failed" : "idle"),
+      isRunning ? "running" : (st || "pending")));
     const file = ph.produces.endsWith("/") ? null : ph.produces;
     if (file && job && job.files.includes(file)) {
       row.addEventListener("click", () => { ui.artifact = file; render(); });
@@ -520,6 +536,8 @@ function renderJob(c, wf) {
 
   // live log while running or after failure
   if (job && (job.running || s.cls === "failed")) {
+    const lbl = el("div", "crumb", "live activity — every tool call the agent makes, as it happens");
+    body.appendChild(lbl);
     const logbox = el("div", "logbox", "…");
     logbox.id = "logbox";
     body.appendChild(logbox);
