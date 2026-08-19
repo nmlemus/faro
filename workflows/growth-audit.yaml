@@ -78,6 +78,7 @@ phases:
       deliver two done properly plus a list of what is missing.
 
   - id: diagnosis
+    gate_class: measurement
     agent: strategist
     produces: 04-diagnosis.md
     requires: [02-measurements.md, 03-landscape.md]
@@ -103,6 +104,7 @@ phases:
       say explicitly what you could NOT diagnose for lack of data.
 
   - id: recommendations
+    gate_class: publish
     agent: channel-planner
     produces: 05-growth-audit.md
     requires: [04-diagnosis.md]

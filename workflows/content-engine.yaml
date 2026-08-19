@@ -33,6 +33,7 @@ phases:
       findings. Content is not decoration: it is the execution of the plan.
 
   - id: calendar
+    gate_class: craft
     agent: channel-planner
     produces: 02-calendar.md
     requires: [01-angles.md]
@@ -74,6 +75,7 @@ phases:
         works differs by platform.
 
   - id: edit
+    gate_class: publish
     agent: editor
     produces: 04-assets/README.md
     requires: [03-drafts.md]

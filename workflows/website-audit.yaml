@@ -45,6 +45,7 @@ phases:
         in what you assume it would say.
 
   - id: positioning
+    gate_class: craft
     agent: strategist
     produces: 02-positioning.md
     requires: [01-capture.md]
@@ -122,6 +123,7 @@ phases:
       connected to measure it.
 
   - id: report
+    gate_class: publish
     agent: strategist
     produces: 05-website-audit.md
     requires: [02-positioning.md, 03-conversion.md, 04-discoverability.md]

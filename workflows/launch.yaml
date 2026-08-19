@@ -14,6 +14,7 @@ deliverable: 05-launch-plan.md
 
 phases:
   - id: positioning
+    gate_class: craft
     agent: strategist
     produces: 01-positioning.md
     requires: []
@@ -53,6 +54,7 @@ phases:
       Use the `offers` and `pricing` skills as method.
 
   - id: plan
+    gate_class: money
     agent: channel-planner
     produces: 03-plan.md
     requires: [02-offer.md]
@@ -83,6 +85,7 @@ phases:
       a specific network.
 
   - id: review
+    gate_class: publish
     agent: editor
     produces: 05-launch-plan.md
     requires: [04-assets.md]
