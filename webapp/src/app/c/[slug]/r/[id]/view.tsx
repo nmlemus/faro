@@ -200,7 +200,14 @@ export default function RunView(props: {
           <section className="card-flat p-10 rise" style={{ boxShadow: "var(--sh-3)", background: "var(--paper)" }}>
             <div className="flex items-center justify-between mb-6">
               <span className="t-eyebrow">{artifact.path}</span>
-              <button onClick={() => setOpen(null)} className="t-mono text-ink-3 hover:text-ink">close ✕</button>
+              <div className="flex items-center gap-4">
+                <a href={`/c/${props.slug}/r/${props.runId}/export?file=${encodeURIComponent(artifact.path)}`}
+                  target="_blank" rel="noopener"
+                  className="t-mono text-cobalt-ink hover:underline underline-offset-2">
+                  export / PDF ↗
+                </a>
+                <button onClick={() => setOpen(null)} className="t-mono text-ink-3 hover:text-ink">close ✕</button>
+              </div>
             </div>
             <div className="doc">
               <Markdown remarkPlugins={[remarkGfm]}>{artifact.content}</Markdown>

@@ -21,10 +21,15 @@ Every number carries its **period** and its **segment**. Every recommendation sa
 it rests on data or on judgement. "We believe" and "we measured" are not written the same
 way.
 
-## 3. Cite the skill
+## 3. Cite the skill — in the right place
 
-When you use a skill from the catalog, name it in the work. The deliverable has to be
-auditable: which method was applied, and where it came from.
+When you use a skill from the catalog, name it in INTERNAL working artifacts: which
+method was applied, and where it came from. The work has to be auditable.
+
+**But the FINAL client-facing deliverable never mentions internal machinery**: no
+skill names, no internal filenames (01-intake.md, client.yaml), no system terms. The
+client meeting must be about their brand, not about our filenames. Refer to earlier
+work by its content ("the measurement section", "our channel analysis"), never by file.
 
 ## 4. The deliverable belongs to the client, not to us
 
