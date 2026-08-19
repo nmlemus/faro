@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import RunView from "./view";
+import Shell from "@/components/Shell";
 
 export default async function RunPage(
   { params }: { params: Promise<{ slug: string; id: string }> },
@@ -21,7 +22,9 @@ export default async function RunPage(
     .from("activity_events").select("id,type,payload,created_at")
     .eq("run_id", id).order("id", { ascending: false }).limit(80);
 
+  const running = (phases ?? []).some((p) => p.status === "running");
   return (
+    <Shell working={running}>
     <RunView
       slug={slug}
       clientName={client.name}
@@ -31,5 +34,6 @@ export default async function RunPage(
       artifacts={artifacts ?? []}
       initialEvents={(events ?? []).reverse()}
     />
+    </Shell>
   );
 }

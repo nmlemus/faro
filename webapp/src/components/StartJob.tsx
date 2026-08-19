@@ -43,7 +43,7 @@ export default function StartJob({ clientId, hasWebsite, workflows, activeIds }:
                 <button onClick={() => start(w.id)}
                   disabled={busy === w.id || blocked || active}
                   title={blocked ? "This client has no website" : active ? "Already running" : ""}
-                  className="rounded-full bg-cobalt-soft text-cobalt font-semibold px-4 py-1.5 t-body hover:opacity-80 disabled:opacity-40 transition-opacity">
+                  className="btn btn-soft !px-4 !py-1.5 text-[0.85rem]">
                   {active ? "Active" : busy === w.id ? "Starting…" : "Start"}
                 </button>
               </div>

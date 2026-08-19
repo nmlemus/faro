@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Markdown from "react-markdown";
@@ -13,9 +13,8 @@ type Phase = {
 type Artifact = { id: string; path: string; content: string | null; phase_id: string | null };
 type Ev = { id: number; type: string; payload: Record<string, unknown>; created_at: string };
 
-const DOT: Record<string, string> = {
-  done: "bg-ok", awaiting_gate: "bg-gate pulse", running: "bg-cobalt pulse",
-  failed: "bg-danger", pending: "bg-paper-3 border border-rule", blocked: "bg-paper-3 border border-rule",
+const GLYPH: Record<string, string> = {
+  done: "✓", awaiting_gate: "⏸", running: "●", failed: "✕", pending: "·", blocked: "·",
 };
 
 export default function RunView(props: {
@@ -29,6 +28,7 @@ export default function RunView(props: {
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const feedRef = useRef<HTMLDivElement>(null);
 
   const gate = props.phases.find((p) => p.status === "awaiting_gate");
   const running = props.phases.some((p) => p.status === "running");
@@ -40,13 +40,17 @@ export default function RunView(props: {
       .channel(`run-${props.runId}`)
       .on("postgres_changes",
         { event: "INSERT", schema: "public", table: "activity_events", filter: `run_id=eq.${props.runId}` },
-        (msg) => setEvents((prev) => [...prev.slice(-120), msg.new as Ev]))
+        (msg) => setEvents((prev) => [...prev.slice(-140), msg.new as Ev]))
       .on("postgres_changes",
         { event: "UPDATE", schema: "public", table: "phases", filter: `run_id=eq.${props.runId}` },
         () => router.refresh())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [supabase, props.runId, router]);
+
+  useEffect(() => {
+    feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: "smooth" });
+  }, [events.length]);
 
   async function decide(decision: "approved" | "rejected") {
     if (decision === "rejected" && !feedback.trim()) {
@@ -63,79 +67,92 @@ export default function RunView(props: {
     router.refresh();
   }
 
+  const d = (i: number) => ({ "--d": `${i * 80}ms` } as React.CSSProperties);
+
   return (
-    <main className="max-w-6xl mx-auto px-6 py-12 grid gap-10 lg:grid-cols-[minmax(0,1fr)_340px]">
-      <div className="flex flex-col gap-8 min-w-0">
-        <header>
+    <main className="max-w-6xl mx-auto px-6 py-12 grid gap-12 lg:grid-cols-[minmax(0,1fr)_330px]">
+      <div className="flex flex-col gap-10 min-w-0">
+        <header className="rise" style={d(0)}>
           <Link href={`/c/${props.slug}`} className="t-eyebrow hover:text-ink transition-colors">
             ← {props.clientName}
           </Link>
-          <h1 className="t-display mt-2 font-mono text-[clamp(1.6rem,3.5vw,2.4rem)]">{props.workflow}</h1>
+          <h1 className="t-display mt-2 font-[family-name:var(--font-spline-mono)] !text-[clamp(1.5rem,3.2vw,2.2rem)] !tracking-tight">
+            {props.workflow}
+          </h1>
         </header>
 
         {gate && (
-          <section className="card border-gate p-6 flex flex-col gap-4">
-            <div className="t-eyebrow text-gate">
-              waiting for your decision — {gate.phase_id}
-              {gate.gate_class ? ` · ${gate.gate_class}` : ""}
+          <section className="card p-7 flex flex-col gap-5 rise"
+            style={{ ...d(1), borderColor: "var(--gate)", boxShadow: "var(--sh-2)" }}>
+            <div className="flex items-center gap-3">
+              <span className="text-[1.6rem] leading-none" style={{ color: "var(--gate)" }}>⏸</span>
+              <div>
+                <div className="t-eyebrow" style={{ color: "var(--gate)" }}>
+                  {gate.gate_class ?? "craft"} gate · {gate.phase_id}
+                </div>
+                <h2 className="t-h1 mt-0.5">This needs a human. That is you.</h2>
+              </div>
             </div>
-            <p className="t-body text-ink-2">{gate.gate_text}</p>
+            <p className="t-body text-ink-2 max-w-[62ch]">{gate.gate_text}</p>
             <div className="flex flex-wrap gap-3">
-              <button onClick={() => decide("approved")} disabled={busy}
-                className="rounded-full bg-gate text-paper font-semibold px-5 py-2.5 hover:opacity-90 disabled:opacity-50 transition-opacity">
-                Approve
-              </button>
-              <button onClick={() => decide("rejected")} disabled={busy}
-                className="rounded-full bg-danger-soft text-danger font-semibold px-5 py-2.5 hover:opacity-80 disabled:opacity-50 transition-opacity">
-                Request changes
-              </button>
+              <button onClick={() => decide("approved")} disabled={busy} className="btn btn-gate">Approve</button>
+              <button onClick={() => decide("rejected")} disabled={busy} className="btn btn-danger">Request changes</button>
               {gateArtifact && (
-                <button onClick={() => setOpen(gateArtifact.path)}
-                  className="rounded-full bg-paper-3 text-ink font-semibold px-5 py-2.5 hover:bg-rule transition-colors">
+                <button onClick={() => setOpen(gateArtifact.path)} className="btn btn-soft">
                   Read {gateArtifact.path}
                 </button>
               )}
             </div>
             <textarea value={feedback} onChange={(e) => setFeedback(e.target.value)}
-              placeholder="To request changes: what, concretely."
-              className="rounded-lg border border-rule bg-paper px-3 py-2.5 t-body min-h-20 outline-none focus:border-gate" />
+              placeholder="To request changes: what, concretely. Your words are folded into the redo."
+              className="field min-h-20 resize-y" />
             {err && <p className="t-body text-danger">{err}</p>}
           </section>
         )}
 
-        <section className="flex flex-col">
-          {props.phases.map((p, i) => {
-            const art = props.artifacts.find((a) => a.phase_id === p.id);
-            return (
-              <div key={p.id} className="flex gap-4">
-                <div className="flex flex-col items-center">
-                  <span className={`mt-1.5 h-3 w-3 rounded-full flex-none ${DOT[p.status] ?? "bg-paper-3"}`} />
-                  {i < props.phases.length - 1 && <span className="w-px flex-1 bg-rule" />}
-                </div>
-                <div className="pb-7 min-w-0 flex-1">
-                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <span className="t-h2">{p.phase_id}</span>
-                    <span className="t-mono text-ink-3">{p.agent}</span>
-                    {p.status === "running" && <span className="t-mono text-cobalt pulse">working…</span>}
-                    {p.status === "awaiting_gate" && <span className="t-mono text-gate">⏸ your call</span>}
-                    {p.status === "failed" && <span className="t-mono text-danger">failed</span>}
+        <section className="rise" style={d(2)}>
+          <div className="t-eyebrow mb-4">the pipeline</div>
+          <div className="flex flex-col">
+            {props.phases.map((p, i) => {
+              const art = props.artifacts.find((a) => a.phase_id === p.id);
+              const tone = p.status === "done" ? "var(--ok)" : p.status === "awaiting_gate" ? "var(--gate)"
+                : p.status === "running" ? "var(--cobalt)" : p.status === "failed" ? "var(--danger)" : "var(--ink-3)";
+              return (
+                <div key={p.id} className="grid grid-cols-[28px_1fr] gap-x-4">
+                  <div className="flex flex-col items-center">
+                    <span className={`grid place-items-center h-7 w-7 rounded-full border text-[0.8rem] font-semibold flex-none ${p.status === "running" || p.status === "awaiting_gate" ? "pulse" : ""}`}
+                      style={{ color: tone, borderColor: tone,
+                               background: p.status === "done" ? "var(--ok-soft)" : "transparent" }}>
+                      {GLYPH[p.status] ?? "·"}
+                    </span>
+                    {i < props.phases.length - 1 && <span className="w-px flex-1 my-1" style={{ background: "var(--rule)" }} />}
                   </div>
-                  {art?.content && (
-                    <button onClick={() => setOpen(open === art.path ? null : art.path)}
-                      className="t-mono text-cobalt hover:underline underline-offset-2 mt-1">
-                      {open === art.path ? "close" : art.path}
-                    </button>
-                  )}
-                  {p.error && <p className="t-mono text-danger mt-1">{p.error}</p>}
+                  <div className="pb-8 min-w-0">
+                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                      <span className="t-h2">{p.phase_id}</span>
+                      <span className="t-mono text-ink-3">{p.agent}</span>
+                      {p.status === "running" && <span className="t-mono text-cobalt-ink pulse">working…</span>}
+                    </div>
+                    {art?.content && (
+                      <button onClick={() => setOpen(open === art.path ? null : art.path)}
+                        className="t-mono text-cobalt-ink hover:underline underline-offset-2 mt-1">
+                        {open === art.path ? "close document" : `read ${art.path}`}
+                      </button>
+                    )}
+                    {p.error && <p className="t-mono text-danger mt-1">{p.error}</p>}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </section>
 
         {artifact?.content && (
-          <section className="card p-8">
-            <div className="t-eyebrow mb-4">{artifact.path}</div>
+          <section className="card-flat p-10 rise" style={{ boxShadow: "var(--sh-3)", background: "var(--paper)" }}>
+            <div className="flex items-center justify-between mb-6">
+              <span className="t-eyebrow">{artifact.path}</span>
+              <button onClick={() => setOpen(null)} className="t-mono text-ink-3 hover:text-ink">close ✕</button>
+            </div>
             <div className="doc">
               <Markdown remarkPlugins={[remarkGfm]}>{artifact.content}</Markdown>
             </div>
@@ -143,18 +160,20 @@ export default function RunView(props: {
         )}
       </div>
 
-      <aside className="lg:sticky lg:top-10 h-fit flex flex-col gap-3 min-w-0">
-        <div className="t-eyebrow">
-          live activity {running && <span className="text-cobalt pulse">·</span>}
+      <aside className="lg:sticky lg:top-20 h-fit flex flex-col gap-3 min-w-0 rise" style={d(3)}>
+        <div className="flex items-center gap-2">
+          <span className={`beacon ${running ? "" : "idle"}`} aria-hidden />
+          <span className="t-eyebrow">live activity</span>
         </div>
-        <div className="card p-4 flex flex-col gap-1.5 max-h-[70vh] overflow-y-auto">
-          {events.length === 0 && <p className="t-mono text-ink-3">quiet.</p>}
+        <div ref={feedRef} className="feed p-4 flex flex-col gap-1 max-h-[68vh] overflow-y-auto">
+          {events.length === 0 && <p className="dim">quiet. events stream here the moment work starts.</p>}
           {events.map((e) => (
-            <p key={e.id} className="t-mono text-ink-2 break-words">
-              {e.type === "session_start" && <>· session started <span className="text-ink-3">({String(e.payload.model ?? "")})</span></>}
-              {e.type === "tool" && <>▸ {String(e.payload.line ?? "")}</>}
-              {e.type === "text" && <span className="text-ink-3">✎ {String(e.payload.line ?? "")}</span>}
-              {e.type === "done" && <span className="text-ok">✓ session finished</span>}
+            <p key={e.id} className="break-words">
+              {e.type === "session_start" && <span className="dim">· session started ({String(e.payload.model ?? "")})</span>}
+              {e.type === "tool" && <><span className="accent">▸</span> {String(e.payload.line ?? "")}</>}
+              {e.type === "text" && <span className="dim">✎ {String(e.payload.line ?? "")}</span>}
+              {e.type === "done" && <span className="good">✓ session finished</span>}
+              {e.type === "error" && <span className="text-danger">✕ {String(e.payload.line ?? "")}</span>}
             </p>
           ))}
         </div>
