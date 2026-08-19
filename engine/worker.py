@@ -12,6 +12,7 @@ AGENCY_ENGINE_FAKE=1 skips claude and writes a canned artifact — plumbing test
 import importlib.machinery
 import json
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -291,6 +292,48 @@ def expand_runs():
         print(f"[expand] {slug}/{r['jobs']['workflow_id']} -> {len(wf['phases'])} phases")
 
 
+# ---- metrics extraction (Marta #4: the results layer) --------------------
+# Deliverables may carry a ```metrics fence with CSV lines:
+#   metric,channel,period,value,unit
+#   spend,meta,2026-W34,1240.50,usd
+# Every row lands in the metrics table pointing back at its artifact, so the
+# portal can chart it while keeping "every number has an origin".
+METRIC_LINE = re.compile(
+    r"^\s*([a-z0-9_.-]+)\s*,\s*([a-z0-9_.-]*)\s*,"
+    r"\s*(\d{4}-(?:W\d{2}|\d{2}))\s*,\s*(-?\d[\d,]*\.?\d*)\s*,\s*(.*?)\s*$",
+    re.I,
+)
+
+def parse_metrics(content):
+    rows = []
+    for block in re.findall(r"```metrics\s*\n(.*?)```", content, re.S):
+        for line in block.strip().splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or line.lower().startswith("metric,"):
+                continue
+            m = METRIC_LINE.match(line)
+            if not m:
+                continue
+            metric, channel, period, value, unit = m.groups()
+            rows.append({"metric": metric.lower(), "channel": channel.lower(),
+                         "period": period.upper(), "value": float(value.replace(",", "")),
+                         "unit": unit.lower() or None})
+    return rows
+
+
+def store_metrics(phase, run, client, content):
+    rows = parse_metrics(content)
+    if not rows:
+        return
+    db.insert("metrics", [dict(r,
+        org_id=client["org_id"], client_id=client["id"],
+        run_id=run["id"], phase_id=phase["id"],
+        source_path=phase["produces"]) for r in rows],
+        upsert_on="client_id,metric,channel,period,source_path")
+    emit(phase, "metrics", {"line": f"Recorded {len(rows)} KPI value(s) from {phase['produces']}",
+                            "count": len(rows)})
+
+
 def run_one():
     claimed = db.rpc("claim_phase", {"p_worker": WORKER})
     if not claimed:
@@ -321,8 +364,10 @@ def run_one():
             rc = run_claude_streaming(phase, persona, prompt, cwd)
 
         if rc == 0 and out_file.is_file():
+            content = out_file.read_text()
             db.rpc("finish_phase", {"p_phase": phase["id"], "p_ok": True,
-                                    "p_content": out_file.read_text(), "p_error": None})
+                                    "p_content": content, "p_error": None})
+            store_metrics(phase, run, client, content)
             print(f"  done -> {phase['produces']}")
         else:
             db.rpc("finish_phase", {"p_phase": phase["id"], "p_ok": False, "p_content": None,

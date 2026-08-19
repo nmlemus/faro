@@ -15,6 +15,22 @@ session**: a query, a CLI from the connected tools, a file of the client's you r
   named, and carried with its sensitivity**: what changes about the conclusion if it is
   wrong. Saying "this is an estimate" is not enough — say what breaks it.
 
+## 1b. Measured KPIs also travel as data
+
+When a deliverable reports KPIs that were actually measured (spend, CAC,
+conversions, CTR — real numbers from real sources, never estimates), append a
+fenced block so the platform can chart them without losing their origin:
+
+```metrics
+metric,channel,period,value,unit
+spend,meta,2026-W34,1240.50,usd
+cac,,2026-W34,38.20,usd
+```
+
+One line per number. `channel` empty means account-wide. `period` is an ISO week
+(2026-W34) or month (2026-08). Only measured numbers go here — an inferred or
+estimated figure never enters a metrics block.
+
 ## 2. Separate what you measured from what you inferred
 
 Every number carries its **period** and its **segment**. Every recommendation says whether

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import Shell from "@/components/Shell";
 import StartJob from "@/components/StartJob";
+import Results from "@/components/Results";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,12 @@ export default async function ClientPage({ params }: { params: Promise<{ slug: s
     .eq("client_id", client.id)
     .order("created_at", { ascending: false });
 
+  const { data: metrics } = await supabase
+    .from("metrics")
+    .select("metric,channel,period,value,unit,source_path,run_id")
+    .eq("client_id", client.id)
+    .order("period", { ascending: true });
+
   const anyRunning = (runs ?? []).some((r) => (r.phases ?? []).some((p) => p.status === "running"));
   const d = (i: number) => ({ "--d": `${i * 90}ms` } as React.CSSProperties);
 
@@ -49,6 +56,8 @@ export default async function ClientPage({ params }: { params: Promise<{ slug: s
           </div>
           {client.business && <p className="t-body text-ink-2 mt-3 max-w-[56ch]">{client.business}</p>}
         </header>
+
+        {!!metrics?.length && <Results rows={metrics} slug={slug} />}
 
         <section className="flex flex-col gap-4 rise" style={d(1)}>
           <div className="t-eyebrow">the work</div>
