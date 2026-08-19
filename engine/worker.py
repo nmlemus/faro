@@ -89,6 +89,14 @@ def build_prompt(phase, run, client, wf, out_file):
     wf_phase = next(p for p in wf["phases"] if p["id"] == phase["phase_id"])
     fb = (f"\n\n## Feedback from the previous gate — REDO this phase addressing it\n\n{phase['feedback']}\n"
           if phase.get("feedback") else "")
+    intake = run.get("intake") or {}
+    intake_block = ""
+    if any(str(v).strip() for v in intake.values()):
+        lines_i = "\n".join(f"- **{k.replace('_', ' ')}:** {v}" for k, v in intake.items()
+                             if str(v).strip())
+        intake_block = (f"\n\n# What the human asked for when starting this job\n\n{lines_i}\n\n"
+                        "This intake is the brief. If the work cannot honor part of it, say so "
+                        "explicitly in the deliverable — do not silently substitute your own brief.")
     brand = (client.get("brand") or {}).get("md", "")
 
     return f"""{(ROOT / 'AGENCY.md').read_text()}
@@ -114,7 +122,7 @@ name in the deliverable which you used.
 
 {core.tools_block()}
 
-# Job: {wf['name']} — phase `{phase['phase_id']}`
+# Job: {wf['name']} — phase `{phase['phase_id']}`{intake_block}
 {fb}
 ## Your task
 
