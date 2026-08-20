@@ -2,6 +2,7 @@ import { getLang } from "@/lib/lang-server";
 import { tFor } from "@/lib/i18n";
 import LoginForm from "./form";
 import LangSwitcher from "@/components/LangSwitcher";
+import { devLogin } from "./actions";
 
 export default async function Login() {
   const lang = await getLang();
@@ -41,6 +42,19 @@ export default async function Login() {
             <h2 className="t-h1">{t("Your account is waiting.")}</h2>
           </div>
           <LoginForm lang={lang} />
+          {/(127\.0\.0\.1|localhost)/.test(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "") && (
+            <div className="card-flat p-4 flex flex-col gap-3 rise" style={{ "--d": "320ms" } as React.CSSProperties}>
+              <span className="t-eyebrow">dev · one-click logins (local only)</span>
+              <div className="flex gap-3">
+                <form action={devLogin.bind(null, "owner")}>
+                  <button className="btn btn-soft t-mono !py-1.5">→ owner (Noel)</button>
+                </form>
+                <form action={devLogin.bind(null, "client")}>
+                  <button className="btn btn-soft t-mono !py-1.5">→ client (YoMap)</button>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       </section>
     </main>
