@@ -60,8 +60,12 @@ export default function Connectors({ clientId, catalog, tools }: {
   }
 
   if (!open) return (
-    <button onClick={() => setOpen(true)} className="t-mono text-ink-3 hover:text-ink transition-colors">
-      connectors{connected.size ? ` · ${connected.size} connected` : ""}
+    <button onClick={() => setOpen(true)}
+      className="btn btn-soft t-mono !py-1.5 !px-3.5"
+      style={{ border: "1px solid var(--rule)" }}>
+      ⌁ connectors{connected.size
+        ? ` · ${connected.size} connected`
+        : " · none connected"}
     </button>
   );
 

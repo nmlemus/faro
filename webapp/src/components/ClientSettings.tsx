@@ -35,8 +35,9 @@ export default function ClientSettings({ client }: { client: Record<string, stri
 
   if (!open) return (
     <button onClick={() => { setOpen(true); setSaved(false); }}
-      className="t-mono text-ink-3 hover:text-ink transition-colors">
-      {saved ? "saved ✓ · " : ""}account settings
+      className="btn btn-soft t-mono !py-1.5 !px-3.5"
+      style={{ border: "1px solid var(--rule)" }}>
+      ⚙︎ account settings{saved ? " · saved ✓" : ""}
     </button>
   );
 

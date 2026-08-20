@@ -17,8 +17,8 @@ Status legend: [x] fixed · [ ] open
       type-the-name confirmation
 
 ## P1 — before any real client gets credentials
-- [ ] "account settings" / "connectors" look like metadata, not actions →
-      secondary buttons with border + icon
+- [x] "account settings" / "connectors" look like metadata, not actions →
+      now bordered pill buttons with icon and connection count
 - [ ] Connector fields labeled as env vars (GOOGLE_ADS_TOKEN), unrendered
       backticks, no connected/not-connected badge in catalog, no icons →
       human labels + status badges
