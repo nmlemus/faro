@@ -10,7 +10,7 @@
   --paper-3:    #E8E5DB;
   --ink:        #131518;
   --ink-2:      #46494E;
-  --ink-3:      #7E8287;
+  --ink-3:      #5C6066;  /* 6.3:1 on paper — AA */
   --rule:       #DDD9CD;
   --rule-soft:  #E9E6DC;
 
@@ -38,7 +38,7 @@
     --paper-3:    #1F2126;
     --ink:        #EDEBE4;
     --ink-2:      #B6B4AC;
-    --ink-3:      #7F7E78;
+    --ink-3:      #A9ACB2;  /* 7.2:1 on paper — AA */
     --rule:       #2B2D33;
     --rule-soft:  #23252A;
     --cobalt:     #8B9CF7;
@@ -186,6 +186,7 @@ a.card:hover, button.card:hover { box-shadow: var(--sh-2); transform: translateY
 .btn:active:not(:disabled) { transform: translateY(0); }
 .btn:disabled { opacity: .4; cursor: not-allowed; }
 .btn:focus-visible { outline: 3px solid var(--cobalt); outline-offset: 2px; }
+:focus-visible { outline: 3px solid var(--cobalt); outline-offset: 2px; border-radius: 8px; }
 .btn-ink { background: var(--ink); color: var(--paper); }
 .btn-gate { background: var(--gate); color: #fff; }
 .btn-soft { background: var(--paper-3); color: var(--ink); }
@@ -226,3 +227,14 @@ a.card:hover, button.card:hover { box-shadow: var(--sh-2); transform: translateY
 .feed .dim { color: #7E8287; opacity: 1; }
 .feed .accent { color: #9DACF9; }
 .feed .good { color: #8FD8A8; }
+
+/* ── the desk (staff cockpit) ──────────────────────────────────────────── */
+.desk-row { position: relative; }
+.desk-row:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.desk-row:active { background: color-mix(in srgb, var(--ink) 10%, transparent); }
+.desk-table th { text-align: left; font-family: var(--font-spline-mono); font-size: .64rem;
+  font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3);
+  padding: .65rem .9rem; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+.desk-table td { padding: .55rem .9rem; border-bottom: 1px solid var(--rule-soft);
+  white-space: nowrap; font-size: .84rem; }
+.desk-table tr:last-child td { border-bottom: none; }
