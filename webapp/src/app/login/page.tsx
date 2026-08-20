@@ -1,6 +1,7 @@
 import { getLang } from "@/lib/lang-server";
 import { tFor } from "@/lib/i18n";
 import LoginForm from "./form";
+import LangSwitcher from "@/components/LangSwitcher";
 
 export default async function Login() {
   const lang = await getLang();
@@ -15,18 +16,19 @@ export default async function Login() {
         </div>
         <div className="flex flex-col gap-5">
           <h1 className="t-display rise" style={{ "--d": "180ms" } as React.CSSProperties}>
-            {t("The agency,")}<br />{lang === "es" ? <em>operada a la vista.</em> : <>operated <em>in the open.</em></>}
+            {t("Nothing ships")}<br /><em>{t("without your yes.")}</em>
           </h1>
           <p className="t-body text-ink-2 max-w-[46ch] rise" style={{ "--d": "300ms" } as React.CSSProperties}>
-            {t("Every deliverable traceable. Every number with an origin. Every decision signed by a person. That is the whole method — and you are looking at it running.")}
+            {t("What ran this week, what it cost, what came back, and what's waiting on your decision — that's what's inside.")}
           </p>
         </div>
         <p className="t-mono text-ink-3 rise" style={{ "--d": "420ms" } as React.CSSProperties}>
-          {t("audits, media plans, weekly optimization — run by AI, signed by people")}
+          {t("your marketing, operated week by week")}
         </p>
       </section>
 
-      <section className="grid place-items-center p-8">
+      <section className="relative grid place-items-center p-8">
+        <div className="absolute top-6 right-8"><LangSwitcher lang={lang} /></div>
         <div className="w-full max-w-sm flex flex-col gap-8">
           <div className="lg:hidden flex items-center gap-3">
             <span className="beacon lg" aria-hidden />

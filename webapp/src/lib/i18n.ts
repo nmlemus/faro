@@ -88,12 +88,11 @@ const es: Record<string, string> = {
   "Password": "Contraseña",
   "Sign in": "Entrar",
   "Signing in…": "Entrando…",
-  "The agency,": "La agencia,",
-  "operated in the open.": "operada a la vista.",
-  "Every deliverable traceable. Every number with an origin. Every decision signed by a person. That is the whole method — and you are looking at it running.":
-    "Cada entregable trazable. Cada número con su origen. Cada decisión firmada por una persona. Ese es todo el método — y lo estás viendo funcionar.",
-  "audits, media plans, weekly optimization — run by AI, signed by people":
-    "auditorías, planes de medios, optimización semanal — ejecutados por AI, firmados por personas",
+  "Nothing ships": "Nada se publica",
+  "without your yes.": "sin tu visto bueno.",
+  "What ran this week, what it cost, what came back, and what's waiting on your decision — that's what's inside.":
+    "Qué corrió esta semana, qué costó, qué resultados trajo y qué espera tu decisión — eso es lo que hay adentro.",
+  "your marketing, operated week by week": "tu marketing, operado semana a semana",
   "Trouble signing in? Write to your account director — they reset access.":
     "¿Problemas para entrar? Escríbele a tu director de cuenta — ellos restablecen el acceso.",
   "That email and password don't match. Check both and try again.":
