@@ -329,40 +329,55 @@ def expand_runs():
         # data preflight (transitional: data files still live on disk)
         if r["jobs"]["workflow_id"] == "growth-audit":
             data = ROOT / "clients" / slug / "data"
-            if not data.is_dir() or not any(f.suffix.lower() in (".csv", ".tsv", ".json", ".xlsx")
-                                            for f in data.glob("*")):
-                # a sibling run this workflow builds_on may still be producing
-                # its input — wait for it instead of abandoning
-                waiting_on = None
+            has_data = data.is_dir() and any(
+                f.suffix.lower() in (".csv", ".tsv", ".json", ".xlsx") for f in data.glob("*"))
+            if not has_data:
+                # a COMPLETE builds_on run substitutes for data files — its
+                # deliverable is injected as this run's input, exactly what
+                # the error message promises ("or run the website audit")
+                done = []
                 for dep in (wf.get("builds_on") or []):
-                    sibling = db.select(
+                    done += db.select(
                         "job_runs",
-                        f"client_id=eq.{r['client_id']}&status=eq.active&select=id,jobs!inner(workflow_id)"
-                        f"&jobs.workflow_id=eq.{dep}")
-                    sibling = [s for s in sibling if s["id"] != r["id"]]
-                    if sibling:
-                        waiting_on = dep
-                        break
-                if waiting_on:
-                    already = db.select(
-                        "activity_events",
-                        f"run_id=eq.{r['id']}&type=eq.waiting&select=id&limit=1")
-                    if not already:
-                        db.insert("activity_events", [{
-                            "org_id": r["org_id"], "client_id": r["client_id"], "run_id": r["id"],
-                            "type": "waiting",
-                            "payload": {"line": f"Holding until {waiting_on} finishes — "
-                                                "this audit builds on its result."}}])
-                        print(f"[expand] {slug}/growth-audit waiting on {waiting_on}")
+                        f"client_id=eq.{r['client_id']}&status=eq.complete"
+                        f"&select=id,jobs!inner(workflow_id)&jobs.workflow_id=eq.{dep}")
+                if done:
+                    print(f"[expand] {slug}/growth-audit: no data files, "
+                          f"building on a completed audit")
+                else:
+                    # or a builds_on run may still be producing its input —
+                    # hold for it instead of abandoning
+                    waiting_on = None
+                    for dep in (wf.get("builds_on") or []):
+                        sibling = db.select(
+                            "job_runs",
+                            f"client_id=eq.{r['client_id']}&status=eq.active"
+                            f"&select=id,jobs!inner(workflow_id)&jobs.workflow_id=eq.{dep}")
+                        sibling = [s for s in sibling if s["id"] != r["id"]]
+                        if sibling:
+                            waiting_on = dep
+                            break
+                    if waiting_on:
+                        already = db.select(
+                            "activity_events",
+                            f"run_id=eq.{r['id']}&type=eq.waiting&select=id&limit=1")
+                        if not already:
+                            db.insert("activity_events", [{
+                                "org_id": r["org_id"], "client_id": r["client_id"],
+                                "run_id": r["id"], "type": "waiting",
+                                "payload": {"line": f"Holding until {waiting_on} finishes — "
+                                                    "this audit builds on its result."}}])
+                            print(f"[expand] {slug}/growth-audit waiting on {waiting_on}")
+                        continue
+                    db.insert("activity_events", [{
+                        "org_id": r["org_id"], "client_id": r["client_id"], "run_id": r["id"],
+                        "type": "error",
+                        "payload": {"line": f"'{slug}' has no data files; growth-audit needs "
+                                            "them. Add the client's exports, or run the "
+                                            "website audit."}}])
+                    db.update("job_runs", f"id=eq.{r['id']}", {"status": "abandoned"})
+                    print(f"[expand] {slug}/growth-audit abandoned: no data")
                     continue
-                db.insert("activity_events", [{
-                    "org_id": r["org_id"], "client_id": r["client_id"], "run_id": r["id"],
-                    "type": "error",
-                    "payload": {"line": f"'{slug}' has no data files; growth-audit needs them. "
-                                        "Add the client's exports, or run the website audit."}}])
-                db.update("job_runs", f"id=eq.{r['id']}", {"status": "abandoned"})
-                print(f"[expand] {slug}/growth-audit abandoned: no data")
-                continue
         for i, ph in enumerate(wf["phases"]):
             db.insert("phases", [{
                 "run_id": r["id"], "org_id": r["org_id"], "client_id": r["client_id"],
@@ -478,9 +493,19 @@ def enqueue(slug, workflow_id, run_key="main"):
         raise SystemExit(f"'{slug}' has no website and website-audit comes entirely from it")
     if workflow_id == "growth-audit":
         data = ROOT / "clients" / slug / "data"
-        if not data.is_dir() or not any(f.suffix.lower() in (".csv", ".tsv", ".json", ".xlsx")
-                                        for f in data.glob("*")):
-            raise SystemExit(f"'{slug}' has no data files; growth-audit needs them")
+        has_data = data.is_dir() and any(f.suffix.lower() in (".csv", ".tsv", ".json", ".xlsx")
+                                         for f in data.glob("*"))
+        if not has_data:
+            # same rule as expand_runs: a completed builds_on run substitutes
+            done = []
+            for dep in (wf.get("builds_on") or []):
+                done += db.select(
+                    "job_runs",
+                    f"client_id=eq.{client['id']}&status=eq.complete"
+                    f"&select=id,jobs!inner(workflow_id)&jobs.workflow_id=eq.{dep}")
+            if not done:
+                raise SystemExit(f"'{slug}' has no data files; growth-audit needs them "
+                                 f"(or a completed audit to build on)")
     job = db.insert("jobs", [{"org_id": client["org_id"], "client_id": client["id"],
                               "workflow_id": workflow_id}],
                     upsert_on="client_id,workflow_id")[0]
