@@ -26,7 +26,8 @@ import db
 ROOT = Path(__file__).resolve().parent.parent
 core = importlib.machinery.SourceFileLoader("agency_cli", str(ROOT / "bin" / "agency")).load_module()
 
-WORKER = f"{socket.gethostname()}:{os.getpid()}"
+HOSTNAME = socket.gethostname()
+WORKER = f"{HOSTNAME}:{os.getpid()}"
 CLAUDE = os.environ.get("AGENCY_CLAUDE", "claude")
 MODEL = os.environ.get("AGENCY_MODEL", "sonnet")
 FAKE = bool(os.environ.get("AGENCY_ENGINE_FAKE"))
@@ -272,6 +273,44 @@ def ensure_recurring_runs():
         print(f"[recurring] run {key} created for job {j['id'][:8]}")
 
 
+def reap_stale_phases():
+    """A phase claimed by a dead worker stays 'running' forever without this.
+    Two signals: (a) claimed by a pid on THIS host that no longer exists;
+    (b) no activity event for 15 minutes — live claude sessions emit
+    constantly, so a long silence means the worker died mid-phase.
+    Recovery is a reset to pending: phases are idempotent, the next claim
+    rebuilds the artifact from scratch."""
+    import datetime
+    running = db.select("phases", "status=eq.running&select=id,phase_id,run_id,org_id,client_id,claimed_by,started_at")
+    for ph in running:
+        stale = False
+        claimed = ph.get("claimed_by") or ""
+        host, _, pid = claimed.rpartition(":")
+        if host == HOSTNAME and pid.isdigit() and claimed != WORKER:
+            try:
+                os.kill(int(pid), 0)
+            except (ProcessLookupError, PermissionError, ValueError):
+                stale = True
+        if not stale:
+            ev = db.select("activity_events",
+                           f"phase_id=eq.{ph['id']}&select=created_at&order=created_at.desc&limit=1")
+            last = ev[0]["created_at"] if ev else ph.get("started_at")
+            if last:
+                dt = datetime.datetime.fromisoformat(last.replace("Z", "+00:00"))
+                age = datetime.datetime.now(datetime.timezone.utc) - dt
+                if age.total_seconds() > 15 * 60:
+                    stale = True
+        if stale:
+            db.update("phases", f"id=eq.{ph['id']}&status=eq.running",
+                      {"status": "pending", "claimed_by": None, "started_at": None})
+            db.insert("activity_events", [{
+                "org_id": ph["org_id"], "client_id": ph["client_id"], "run_id": ph["run_id"],
+                "phase_id": ph["id"], "type": "recovered",
+                "payload": {"line": f"{ph['phase_id']} was orphaned by a dead worker — "
+                                    "back in the queue, it will run again."}}])
+            print(f"[reaper] {ph['phase_id']} reset (was {claimed})")
+
+
 def expand_runs():
     """Materialize phases for UI-requested runs. The UI writes intent; only the
     engine — which has the git method checkout — knows what phases exist."""
@@ -292,6 +331,30 @@ def expand_runs():
             data = ROOT / "clients" / slug / "data"
             if not data.is_dir() or not any(f.suffix.lower() in (".csv", ".tsv", ".json", ".xlsx")
                                             for f in data.glob("*")):
+                # a sibling run this workflow builds_on may still be producing
+                # its input — wait for it instead of abandoning
+                waiting_on = None
+                for dep in (wf.get("builds_on") or []):
+                    sibling = db.select(
+                        "job_runs",
+                        f"client_id=eq.{r['client_id']}&status=eq.active&select=id,jobs!inner(workflow_id)"
+                        f"&jobs.workflow_id=eq.{dep}")
+                    sibling = [s for s in sibling if s["id"] != r["id"]]
+                    if sibling:
+                        waiting_on = dep
+                        break
+                if waiting_on:
+                    already = db.select(
+                        "activity_events",
+                        f"run_id=eq.{r['id']}&type=eq.waiting&select=id&limit=1")
+                    if not already:
+                        db.insert("activity_events", [{
+                            "org_id": r["org_id"], "client_id": r["client_id"], "run_id": r["id"],
+                            "type": "waiting",
+                            "payload": {"line": f"Holding until {waiting_on} finishes — "
+                                                "this audit builds on its result."}}])
+                        print(f"[expand] {slug}/growth-audit waiting on {waiting_on}")
+                    continue
                 db.insert("activity_events", [{
                     "org_id": r["org_id"], "client_id": r["client_id"], "run_id": r["id"],
                     "type": "error",
@@ -446,7 +509,11 @@ if __name__ == "__main__":
         expand_runs()
     else:
         print(f"worker {WORKER} polling…")
+        _last_reap = 0.0
         while True:
+            if time.time() - _last_reap > 60:
+                reap_stale_phases()
+                _last_reap = time.time()
             ensure_recurring_runs()
             expand_runs()
             if not run_one():

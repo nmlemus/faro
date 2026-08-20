@@ -81,8 +81,14 @@ def main():
 
     # ── clients + their history ────────────────────────────────────────────
     import yaml
+    existing_slugs = {c["slug"] for c in db.select("clients", "select=slug")}
     for cdir in sorted((ROOT / "clients").iterdir()):
         if not cdir.is_dir() or cdir.name.startswith("_"):
+            continue
+        if cdir.name in existing_slugs:
+            # the DB is the source of truth once a client exists: re-running
+            # bootstrap must never overwrite web edits or resurrect deleted runs
+            print(f"client {cdir.name} already in DB — skipping import")
             continue
         cfg = yaml.safe_load((cdir / "client.yaml").read_text()) or {}
         brand = (cdir / "brand.md").read_text() if (cdir / "brand.md").is_file() else ""
