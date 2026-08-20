@@ -130,10 +130,11 @@ export default async function ClientPage({ params }: { params: Promise<{ slug: s
           </div>
         )}
         {owner && (
-          <footer className="rise pt-4" style={{ borderTop: "1px solid var(--rule-soft)" }}>
-            <DangerDelete
-              label={`delete ${client.name} — the account, its runs, documents and results`}
-              confirmLabel={`This removes ${client.name} and everything under it. No undo.`}
+          <footer className="rise flex flex-col gap-3 pt-6" style={{ borderTop: "1px solid var(--rule-soft)" }}>
+            <span className="t-eyebrow" style={{ color: "var(--danger)" }}>danger zone</span>
+            <DangerDelete danger requireText={client.name}
+              label={`Delete ${client.name}…`}
+              confirmLabel={`This permanently removes ${client.name} — every run, document, decision and result under it. There is no undo.`}
               rpc="delete_client" args={{ p_client: client.id }} redirectTo="/" />
           </footer>
         )}

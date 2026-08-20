@@ -30,6 +30,7 @@ export default async function RunPage(
   const { data: membership } = await supabase
     .from("org_members").select("role").eq("user_id", me.user?.id ?? "").limit(1);
   const owner = membership?.[0]?.role === "owner";
+  const staffView = (membership?.[0]?.role ?? "client_viewer") !== "client_viewer";
 
   const running = (phases ?? []).some((p) => p.status === "running");
   return (
@@ -44,6 +45,7 @@ export default async function RunPage(
       initialEvents={(events ?? []).reverse()}
       decisions={decisions ?? []}
       owner={owner}
+      staffView={staffView}
     />
     </Shell>
   );

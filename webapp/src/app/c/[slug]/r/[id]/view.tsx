@@ -65,6 +65,7 @@ const mdComponents = {
 
 export default function RunView(props: {
   owner?: boolean;
+  staffView?: boolean;
   slug: string; clientName: string; workflow: string; runId: string;
   phases: Phase[]; artifacts: Artifact[]; initialEvents: Ev[]; decisions: Decision[];
 }) {
@@ -130,18 +131,12 @@ export default function RunView(props: {
           <h1 className="t-display mt-2 font-[family-name:var(--font-spline-mono)] !text-[clamp(1.5rem,3.2vw,2.2rem)] !tracking-tight">
             {props.workflow}
           </h1>
-          {(() => {
+          {props.staffView && (() => {
             const total = props.phases.reduce((s, p) => s + (Number(p.cost_usd) || 0), 0);
             return total > 0 ? (
               <p className="t-mono text-ink-3 mt-1">run cost ${total.toFixed(2)}</p>
             ) : null;
           })()}
-          {props.owner && (
-            <div className="mt-3">
-              <DangerDelete label="delete this run" confirmLabel="Run, documents and results go. No undo."
-                rpc="delete_run" args={{ p_run: props.runId }} redirectTo={`/c/${props.slug}`} />
-            </div>
-          )}
         </header>
 
         {confirmation && (
@@ -203,7 +198,7 @@ export default function RunView(props: {
                       <span className="t-mono text-ink-3">{p.agent} · AI</span>
                       {p.status === "running" && <span className="t-mono text-cobalt-ink pulse">working since {fmtTime(p.started_at)}</span>}
                       {p.status === "done" && p.finished_at && (
-                        <span className="t-mono text-ink-3">{fmtTime(p.finished_at)}{p.cost_usd != null ? ` · $${Number(p.cost_usd).toFixed(2)}` : ""}</span>
+                        <span className="t-mono text-ink-3">{fmtTime(p.finished_at)}{props.staffView && p.cost_usd != null ? ` · $${Number(p.cost_usd).toFixed(2)}` : ""}</span>
                       )}
                     </div>
                     {props.decisions.filter((dc) => dc.phase_id === p.id).map((dc, di) => (
@@ -245,12 +240,18 @@ export default function RunView(props: {
             </div>
           </section>
         )}
+        {props.owner && (
+          <div className="rise" style={{ ...d(4), borderTop: "1px solid var(--rule-soft)", paddingTop: "1rem" }}>
+            <DangerDelete label="delete this run" confirmLabel="Run, documents and results go. No undo."
+              rpc="delete_run" args={{ p_run: props.runId }} redirectTo={`/c/${props.slug}`} danger />
+          </div>
+        )}
       </div>
 
-      <aside className="lg:sticky lg:top-20 h-fit flex flex-col gap-3 min-w-0 rise" style={d(3)}>
+      {props.staffView && <aside className="lg:sticky lg:top-20 h-fit flex flex-col gap-3 min-w-0 rise" style={d(3)}>
         <div className="flex items-center gap-2">
           <span className={`beacon ${running ? "" : "idle"}`} aria-hidden />
-          <span className="t-eyebrow">live activity</span>
+          <span className="t-eyebrow">{running ? "live activity" : "activity log"}</span>
         </div>
         <div ref={feedRef} className="feed p-4 flex flex-col gap-1 max-h-[68vh] overflow-y-auto">
           {events.length === 0 && <p className="dim">quiet. events stream here the moment work starts.</p>}
@@ -264,7 +265,7 @@ export default function RunView(props: {
             </p>
           ))}
         </div>
-      </aside>
+      </aside>}
     </main>
   );
 }
