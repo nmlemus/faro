@@ -7,8 +7,9 @@ import Results from "@/components/Results";
 import DangerDelete from "@/components/DangerDelete";
 import ClientSettings from "@/components/ClientSettings";
 import Connectors from "@/components/Connectors";
-import { workflowName } from "@/lib/names";
+import { workflowName, phaseName } from "@/lib/names";
 import { tFor } from "@/lib/i18n";
+import { getLang } from "@/lib/lang-server";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,8 @@ export default async function ClientPage({ params }: { params: Promise<{ slug: s
   const staff = (membership?.[0]?.role ?? "client_viewer") !== "client_viewer";
   const owner = membership?.[0]?.role === "owner";
   const canEdit = ["owner", "account_director"].includes(membership?.[0]?.role ?? "");
-  const t = tFor(staff, client.language);
+  const lang = await getLang(staff ? null : client.language);
+  const t = tFor(lang);
 
   const { data: methodRow } = await supabase
     .from("method_versions").select("manifest").order("created_at", { ascending: false }).limit(1);
@@ -61,14 +63,14 @@ export default async function ClientPage({ params }: { params: Promise<{ slug: s
   const d = (i: number) => ({ "--d": `${i * 90}ms` } as React.CSSProperties);
 
   return (
-    <Shell working={anyRunning}>
+    <Shell working={anyRunning} lang={lang}>
       <main className="max-w-6xl mx-auto px-6 py-12 flex flex-col gap-12">
         <header className="rise" style={d(0)}>
-          {staff && <Link href="/" className="t-eyebrow hover:text-ink transition-colors">← all accounts</Link>}
+          {staff && <Link href="/" className="t-eyebrow hover:text-ink transition-colors">{t("← all accounts")}</Link>}
           <div className="flex items-end justify-between gap-6 flex-wrap mt-2">
             <h1 className="t-display">{client.name}<span className="text-cobalt">.</span></h1>
             <p className="t-mono text-ink-3 pb-2">
-              {(client.website || "").replace(/^https?:\/\//, "")} · deliverables in {client.language}
+              {(client.website || "").replace(/^https?:\/\//, "")} · {t("deliverables in")} {client.language}
             </p>
           </div>
           {client.business && <p className="t-body text-ink-2 mt-3 max-w-[56ch]">{client.business}</p>}
@@ -102,7 +104,7 @@ export default async function ClientPage({ params }: { params: Promise<{ slug: s
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-baseline gap-2.5 min-w-0">
                     <h2 className={staff ? "t-h2 font-[family-name:var(--font-spline-mono)]" : "t-h2"}>
-                      {staff ? job?.workflow_id : workflowName(job?.workflow_id ?? "")}
+                      {staff ? job?.workflow_id : workflowName(job?.workflow_id ?? "", lang)}
                     </h2>
                     {r.run_key !== "main" && (
                       <span className="t-mono text-ink-3">
@@ -125,7 +127,7 @@ export default async function ClientPage({ params }: { params: Promise<{ slug: s
                 </div>
                 {gate && (
                   <p className="t-body" style={{ color: "var(--gate)" }}>
-                    ⏸ <strong>{gate.phase_id}</strong> {" "}{t("is waiting for a decision")}
+                    ⏸ <strong>{staff ? gate.phase_id : phaseName(gate.phase_id, lang)}</strong> {" "}{t("is waiting for a decision")}
                     {gate.gate_class ? ` (${gate.gate_class})` : ""}.
                   </p>
                 )}
@@ -134,7 +136,7 @@ export default async function ClientPage({ params }: { params: Promise<{ slug: s
           })}
           {!runs?.length && (
             <div className="card-flat p-10 text-center t-body text-ink-3">
-              Nothing yet — start below.
+              {t("Nothing yet — start below.")}
             </div>
           )}
         </section>

@@ -5,6 +5,8 @@ import ChartBlock from "@/components/ChartBlock";
 import { prepDoc } from "@/lib/md";
 import { supabaseServer } from "@/lib/supabase/server";
 import PrintButton from "./print-button";
+import { isSpanish } from "@/lib/names";
+import { tFor } from "@/lib/i18n";
 
 /* Client-ready view of one deliverable: the document, the signature, nothing else.
    Always light, print-first — File > Save as PDF gives the deck-ready artifact. */
@@ -45,6 +47,8 @@ export default async function ExportPage({ params, searchParams }: {
         .eq("decision", "approved").order("created_at", { ascending: false }).limit(1)
     : { data: null };
   const approval = decision?.[0];
+  const lang = isSpanish(client.language) ? "es" as const : "en" as const;
+  const t = tFor(lang);
 
   return (
     <div data-theme="light" style={{ background: "#fff", minHeight: "100vh" }}>
@@ -74,7 +78,7 @@ export default async function ExportPage({ params, searchParams }: {
             faro<span style={{ color: "#2743E3" }}>.</span>
           </span>
           <span style={{ fontFamily: "var(--font-spline-mono)", fontSize: ".7rem", color: "#7E8287" }}>
-            prepared for {client.name}
+            {t("prepared for")} {client.name}
           </span>
         </div>
         <div className="doc" style={{ maxWidth: "none" }}>
@@ -83,12 +87,12 @@ export default async function ExportPage({ params, searchParams }: {
         <div className="export-foot">
           <span>
             {approval
-              ? `Approved by ${approval.decided_name ?? "staff"} · ${new Date(approval.created_at).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}`
-              : "Working draft — not yet approved"}
+              ? `${t("Approved by")} ${approval.decided_name ?? "staff"} · ${new Date(approval.created_at).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}`
+              : t("Working draft — not yet approved")}
           </span>
-          <span>Every number in this document carries its origin.</span>
+          <span>{t("Every number in this document carries its origin.")}</span>
         </div>
-        <PrintButton />
+        <PrintButton label={t("Print / save as PDF")} />
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import RunView from "./view";
 import Shell from "@/components/Shell";
+import { getLang } from "@/lib/lang-server";
 
 export default async function RunPage(
   { params }: { params: Promise<{ slug: string; id: string }> },
@@ -31,10 +32,11 @@ export default async function RunPage(
     .from("org_members").select("role").eq("user_id", me.user?.id ?? "").limit(1);
   const owner = membership?.[0]?.role === "owner";
   const staffView = (membership?.[0]?.role ?? "client_viewer") !== "client_viewer";
+  const lang = await getLang(staffView ? null : client.language);
 
   const running = (phases ?? []).some((p) => p.status === "running");
   return (
-    <Shell working={running}>
+    <Shell working={running} lang={lang}>
     <RunView
       slug={slug}
       clientName={client.name}
@@ -46,7 +48,7 @@ export default async function RunPage(
       decisions={decisions ?? []}
       owner={owner}
       staffView={staffView}
-      language={client.language}
+      lang={lang}
     />
     </Shell>
   );

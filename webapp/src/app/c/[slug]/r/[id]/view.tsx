@@ -7,8 +7,8 @@ import remarkGfm from "remark-gfm";
 import ChartBlock from "@/components/ChartBlock";
 import DangerDelete from "@/components/DangerDelete";
 import { prepDoc } from "@/lib/md";
-import { workflowName, docName, docTitle } from "@/lib/names";
-import { tFor } from "@/lib/i18n";
+import { workflowName, docName, docTitle, phaseName } from "@/lib/names";
+import { tFor, type Lang } from "@/lib/i18n";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Phase = {
@@ -68,7 +68,7 @@ const mdComponents = {
 export default function RunView(props: {
   owner?: boolean;
   staffView?: boolean;
-  language?: string | null;
+  lang?: Lang;
   slug: string; clientName: string; workflow: string; runId: string;
   phases: Phase[]; artifacts: Artifact[]; initialEvents: Ev[]; decisions: Decision[];
 }) {
@@ -76,7 +76,8 @@ export default function RunView(props: {
   const supabase = useMemo(() => supabaseBrowser(), []);
   const [events, setEvents] = useState<Ev[]>(props.initialEvents);
   const [open, setOpen] = useState<string | null>(null);
-  const t = tFor(props.staffView ?? false, props.language);
+  const lang = props.lang ?? "en";
+  const t = tFor(lang);
   const docRef = useRef<HTMLDivElement | null>(null);
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState(false);
@@ -138,13 +139,13 @@ export default function RunView(props: {
             ← {props.clientName}
           </Link>
           <h1 className="t-display mt-2 font-[family-name:var(--font-spline-mono)] !text-[clamp(1.5rem,3.2vw,2.2rem)] !tracking-tight">
-            {workflowName(props.workflow)}
+            {workflowName(props.workflow, lang)}
           </h1>
           {props.staffView && <p className="t-mono text-ink-3 mt-0.5">{props.workflow}</p>}
           {props.staffView && (() => {
             const total = props.phases.reduce((s, p) => s + (Number(p.cost_usd) || 0), 0);
             return total > 0 ? (
-              <p className="t-mono text-ink-3 mt-1">run cost ${total.toFixed(2)}</p>
+              <p className="t-mono text-ink-3 mt-1">{t("run cost")} ${total.toFixed(2)}</p>
             ) : null;
           })()}
         </header>
@@ -163,7 +164,7 @@ export default function RunView(props: {
               <span className="text-[1.6rem] leading-none" style={{ color: "var(--gate)" }}>⏸</span>
               <div>
                 <div className="t-eyebrow" style={{ color: "var(--gate)" }}>
-                  {gate.gate_class ?? "craft"} {t("gate")} · {gate.phase_id}
+                  {gate.gate_class ?? "craft"} {t("gate")} · {props.staffView ? gate.phase_id : phaseName(gate.phase_id, lang)}
                 </div>
                 <h2 className="t-h1 mt-0.5">{t("This needs a human. That is you.")}</h2>
               </div>
@@ -174,7 +175,7 @@ export default function RunView(props: {
               <button onClick={() => decide("rejected")} disabled={busy} className="btn btn-danger">{t("Request changes")}</button>
               {gateArtifact && (
                 <button onClick={() => setOpen(gateArtifact.path)} className="btn btn-soft">
-                  {t("Read")} {props.staffView ? gateArtifact.path : docName(gateArtifact.path)}
+                  {t("Read")} {props.staffView ? gateArtifact.path : docName(gateArtifact.path, lang)}
                 </button>
               )}
             </div>
@@ -204,9 +205,9 @@ export default function RunView(props: {
                   </div>
                   <div className="pb-8 min-w-0">
                     <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-                      <span className="t-h2">{p.phase_id}</span>
+                      <span className="t-h2">{props.staffView ? p.phase_id : phaseName(p.phase_id, lang)}</span>
                       <span className="t-mono text-ink-3">{p.agent} · AI</span>
-                      {p.status === "running" && <span className="t-mono text-cobalt-ink pulse">working since {fmtTime(p.started_at)}</span>}
+                      {p.status === "running" && <span className="t-mono text-cobalt-ink pulse">{t("working since")} {fmtTime(p.started_at)}</span>}
                       {p.status === "done" && p.finished_at && (
                         <span className="t-mono text-ink-3">{fmtTime(p.finished_at)}{props.staffView && p.cost_usd != null ? ` · $${Number(p.cost_usd).toFixed(2)}` : ""}</span>
                       )}
@@ -222,7 +223,7 @@ export default function RunView(props: {
                       <button onClick={() => setOpen(open === art.path ? null : art.path)}
                         className="t-mono text-cobalt-ink hover:underline underline-offset-2 mt-1">
                         {open === art.path ? t("close document")
-                          : props.staffView ? `read ${art.path}` : `${t("read")} ${docName(art.path)}`}
+                          : props.staffView ? t("read {file}", { file: art.path }) : `${t("read")} ${docName(art.path, lang)}`}
                       </button>
                     )}
                     {p.error && <p className="t-mono text-danger mt-1">{p.error}</p>}
@@ -237,7 +238,7 @@ export default function RunView(props: {
           <section ref={docRef} className="card-flat p-10 rise scroll-mt-20" style={{ boxShadow: "var(--sh-3)", background: "var(--paper)" }}>
             <div className="flex items-center justify-between mb-6">
               <span className="flex items-baseline gap-3 min-w-0">
-                <span className="t-h2 truncate">{docTitle(artifact.path, artifact.content)}</span>
+                <span className="t-h2 truncate">{docTitle(artifact.path, artifact.content, lang)}</span>
                 {props.staffView && <span className="t-eyebrow flex-none">{artifact.path}</span>}
               </span>
               <div className="flex items-center gap-4">
@@ -256,7 +257,7 @@ export default function RunView(props: {
         )}
         {props.owner && (
           <div className="rise" style={{ ...d(4), borderTop: "1px solid var(--rule-soft)", paddingTop: "1rem" }}>
-            <DangerDelete label="delete this run" confirmLabel="Run, documents and results go. No undo."
+            <DangerDelete label={t("delete this run")} confirmLabel="Run, documents and results go. No undo."
               rpc="delete_run" args={{ p_run: props.runId }} redirectTo={`/c/${props.slug}`} danger />
           </div>
         )}
@@ -265,7 +266,7 @@ export default function RunView(props: {
       {props.staffView && <aside className="lg:sticky lg:top-20 h-fit flex flex-col gap-3 min-w-0 rise" style={d(3)}>
         <div className="flex items-center gap-2">
           <span className={`beacon ${running ? "" : "idle"}`} aria-hidden />
-          <span className="t-eyebrow">{running ? "live activity" : "activity log"}</span>
+          <span className="t-eyebrow">{t(running ? "live activity" : "activity log")}</span>
         </div>
         <div ref={feedRef} className="feed p-4 flex flex-col gap-1 max-h-[68vh] overflow-y-auto">
           {events.length === 0 && <p className="dim">quiet. events stream here the moment work starts.</p>}

@@ -4,6 +4,8 @@ import { supabaseServer } from "@/lib/supabase/server";
 import Shell from "@/components/Shell";
 import NewClient from "@/components/NewClient";
 import DeskRows, { type DeskRow } from "@/components/DeskRows";
+import { tFor } from "@/lib/i18n";
+import { getLang } from "@/lib/lang-server";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +32,8 @@ export default async function Home() {
     .from("org_members").select("role,org_id").eq("user_id", me.user?.id ?? "").limit(1);
   const role = membership?.[0]?.role ?? "client_viewer";
   const staff = role !== "client_viewer";
+  const lang = await getLang();
+  const t = tFor(lang);
 
   const { data: clients } = await supabase
     .from("clients")
@@ -40,7 +44,7 @@ export default async function Home() {
     if (clients.length === 1) redirect(`/c/${clients[0].slug}`);
     // a viewer on several clients gets the simple editorial list
     return (
-      <Shell working={false}>
+      <Shell working={false} lang={lang}>
         <main className="max-w-3xl mx-auto px-6 py-14 flex flex-col gap-6">
           <h1 className="t-display rise">Your accounts<span className="text-cobalt">.</span></h1>
           {clients.map((c) => (
@@ -108,8 +112,8 @@ export default async function Home() {
   const deskRows: DeskRow[] = rows.map(({ c, gateN, state, inFlight, nextSched, cost, last }) => ({
     slug: c.slug, name: c.name, website: (c.website || "").replace(/^https?:\/\//, ""),
     state,
-    stateLabel: state === "gate" ? `⏸ ${gateN} waiting on you` : state === "run" ? "● working"
-      : state === "fail" ? "✕ needs attention" : "quiet",
+    stateLabel: state === "gate" ? t("⏸ {n} waiting on you", { n: gateN }) : state === "run" ? t("● working")
+      : state === "fail" ? t("✕ needs attention") : t("quiet"),
     inFlight: inFlight.length ? inFlight.join(", ") : "—",
     cost,
     last: last ? `${last.path} · ${fmtDay(last.created_at)}` : "—",
@@ -119,23 +123,23 @@ export default async function Home() {
   const d = (i: number) => ({ "--d": `${i * 90}ms` } as React.CSSProperties);
 
   return (
-    <Shell working={(running ?? []).length > 0}>
+    <Shell working={(running ?? []).length > 0} lang={lang}>
       <main className="max-w-[1280px] mx-auto px-6 py-10 flex flex-col gap-10">
 
         {/* org strip */}
         <header className="grid gap-4 items-stretch rise" style={{ ...d(0), gridTemplateColumns: "1.5fr repeat(3, minmax(10rem, 1fr))" }}>
           <h1 className="t-display self-center !text-[clamp(1.6rem,3vw,2.2rem)]">
-            {queue.length > 0
-              ? <>{queue.length} decision{queue.length > 1 ? "s" : ""} need{queue.length > 1 ? "" : "s"} <em>a human.</em></>
-              : (running ?? []).length > 0 ? <>The agency is <em>working.</em></>
-              : <>All quiet on <em>every account.</em></>}
+            {queue.length > 1 ? t("{n} decisions need a human.", { n: queue.length })
+              : queue.length === 1 ? t("1 decision needs a human.")
+              : (running ?? []).length > 0 ? t("The agency is working.")
+              : t("All quiet on every account.")}
           </h1>
           {[
             [String(queue.length), queue.length && oldestGateIso
-              ? `open gates · oldest ${fmtAge(oldestGateIso.started_at ?? oldestGateIso.created_at)}`
-              : "open gates"],
-            [String((running ?? []).length), "running now"],
-            [`$${orgCost.toFixed(2)}`, "ai cost · month to date"],
+              ? t("open gates · oldest {age}", { age: fmtAge(oldestGateIso.started_at ?? oldestGateIso.created_at) })
+              : t("open gates")],
+            [String((running ?? []).length), t("running now")],
+            [`$${orgCost.toFixed(2)}`, t("ai cost · month to date")],
           ].map(([v, label], i) => (
             <a key={label} href={i === 0 ? "#queue" : i === 1 ? "#running" : "#accounts"}
               className="card-flat p-4 flex flex-col justify-center gap-0.5 hover:shadow-[var(--sh-2)] transition-shadow">
@@ -149,8 +153,8 @@ export default async function Home() {
         {queue.length > 0 && (
           <section id="queue" className="flex flex-col gap-3 rise scroll-mt-20" style={d(1)}>
             <div className="flex items-baseline gap-3">
-              <span className="t-eyebrow">needs a human</span>
-              <span className="t-mono text-ink-3">money first, oldest first</span>
+              <span className="t-eyebrow">{t("needs a human")}</span>
+              <span className="t-mono text-ink-3">{t("money first, oldest first")}</span>
             </div>
             <div className="card !p-0 overflow-hidden flex flex-col">
               {queue.map((g) => {
@@ -172,7 +176,7 @@ export default async function Home() {
                     <span className="t-mono text-ink-3 text-right tnum">
                       {g.cost_usd != null ? `$${Number(g.cost_usd).toFixed(2)}` : ""}
                     </span>
-                    <span className="t-mono text-cobalt-ink text-right">review →</span>
+                    <span className="t-mono text-cobalt-ink text-right">{t("review →")}</span>
                   </Link>
                 );
               })}
@@ -183,7 +187,7 @@ export default async function Home() {
         {/* running now */}
         {(running ?? []).length > 0 && (
           <section id="running" className="flex flex-col gap-3 rise scroll-mt-20" style={d(2)}>
-            <span className="t-eyebrow">running now</span>
+            <span className="t-eyebrow">{t("running now")}</span>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {(running ?? []).map((r) => {
                 const c = r.clients as unknown as { slug: string; name: string };
@@ -194,7 +198,7 @@ export default async function Home() {
                       <span className="t-h2 truncate"><span className="beacon mr-2" aria-hidden />{c.name}</span>
                       <span className="t-mono text-cobalt-ink truncate">{wf} · {r.phase_id}</span>
                     </div>
-                    <span className="t-mono text-ink-3">working for {fmtAge(r.started_at)}</span>
+                    <span className="t-mono text-ink-3">{t("working for")} {fmtAge(r.started_at)}</span>
                   </Link>
                 );
               })}
@@ -206,24 +210,23 @@ export default async function Home() {
         <section id="accounts" className="flex flex-col gap-3 rise scroll-mt-20" style={d(3)}>
           <div className="flex items-baseline justify-between gap-4">
             <div className="flex items-baseline gap-3">
-              <span className="t-eyebrow">accounts</span>
-              <span className="t-mono text-ink-3">{clients.length} · needs-attention first</span>
+              <span className="t-eyebrow">{t("accounts")}</span>
+              <span className="t-mono text-ink-3">{clients.length} · {t("needs-attention first")}</span>
             </div>
-            <NewClient orgId={membership![0].org_id} />
+            <NewClient orgId={membership![0].org_id} label={t("+ New client")} />
           </div>
           <div className="card !p-0 overflow-x-auto">
             <table className="desk-table w-full" style={{ minWidth: "56rem", borderCollapse: "collapse" }}>
               <thead><tr>
-                <th>account</th><th>state</th><th>in flight</th>
-                <th style={{ textAlign: "right" }}>ai cost mtd</th>
-                <th>last deliverable</th><th>scheduled</th>
+                <th>{t("account")}</th><th>{t("state")}</th><th>{t("in flight")}</th>
+                <th style={{ textAlign: "right" }}>{t("ai cost mtd")}</th>
+                <th>{t("last deliverable")}</th><th>{t("scheduled")}</th>
               </tr></thead>
               <DeskRows rows={deskRows} />
             </table>
           </div>
           <p className="t-mono text-ink-3">
-            ai cost counts every phase finished this month. spend &amp; margin columns arrive with
-            recorded retainers and connected ad accounts — no number shows up here before its origin does.
+            {t("ai cost counts every phase finished this month. spend & margin columns arrive with recorded retainers and connected ad accounts — no number shows up here before its origin does.")}
           </p>
         </section>
       </main>

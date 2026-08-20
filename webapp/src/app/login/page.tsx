@@ -1,10 +1,10 @@
-"use client";
-import { useActionState } from "react";
-import { loginAction, type LoginState } from "./actions";
+import { getLang } from "@/lib/lang-server";
+import { tFor } from "@/lib/i18n";
+import LoginForm from "./form";
 
-export default function Login() {
-  const [state, formAction, busy] = useActionState<LoginState, FormData>(loginAction, {});
-  const err = state.error ?? "";
+export default async function Login() {
+  const lang = await getLang();
+  const t = tFor(lang);
 
   return (
     <main className="min-h-screen grid lg:grid-cols-2">
@@ -15,16 +15,14 @@ export default function Login() {
         </div>
         <div className="flex flex-col gap-5">
           <h1 className="t-display rise" style={{ "--d": "180ms" } as React.CSSProperties}>
-            The agency,<br />operated <em>in the open.</em>
+            {t("The agency,")}<br />{lang === "es" ? <em>operada a la vista.</em> : <>operated <em>in the open.</em></>}
           </h1>
           <p className="t-body text-ink-2 max-w-[46ch] rise" style={{ "--d": "300ms" } as React.CSSProperties}>
-            Every deliverable traceable. Every number with an origin.
-            Every decision signed by a person. That is the whole method —
-            and you are looking at it running.
+            {t("Every deliverable traceable. Every number with an origin. Every decision signed by a person. That is the whole method — and you are looking at it running.")}
           </p>
         </div>
         <p className="t-mono text-ink-3 rise" style={{ "--d": "420ms" } as React.CSSProperties}>
-          audits, media plans, weekly optimization — run by AI, signed by people
+          {t("audits, media plans, weekly optimization — run by AI, signed by people")}
         </p>
       </section>
 
@@ -37,26 +35,10 @@ export default function Login() {
             </span>
           </div>
           <div className="rise" style={{ "--d": "120ms" } as React.CSSProperties}>
-            <div className="t-eyebrow mb-2">sign in</div>
-            <h2 className="t-h1">Your account is waiting.</h2>
+            <div className="t-eyebrow mb-2">{t("sign in")}</div>
+            <h2 className="t-h1">{t("Your account is waiting.")}</h2>
           </div>
-          <form action={formAction} className="flex flex-col gap-4 rise" style={{ "--d": "220ms" } as React.CSSProperties}>
-            <label className="flex flex-col gap-1.5">
-              <span className="t-eyebrow">Email</span>
-              <input className="field" name="email" defaultValue={state.email ?? ""} type="email" required autoFocus autoComplete="email" />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className="t-eyebrow">Password</span>
-              <input className="field" name="password" type="password" required autoComplete="current-password" />
-            </label>
-            {err && <p className="t-body text-danger">{err}</p>}
-            <button disabled={busy} className="btn btn-ink mt-1">
-              {busy ? "Signing in…" : "Sign in"}
-            </button>
-            <p className="t-mono text-ink-3 mt-2">
-              Trouble signing in? Write to your account director — they reset access.
-            </p>
-          </form>
+          <LoginForm lang={lang} />
         </div>
       </section>
     </main>

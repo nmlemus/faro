@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
-export default function NewClient({ orgId }: { orgId: string }) {
+export default function NewClient({ orgId, label }: { orgId: string; label?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -28,7 +28,7 @@ export default function NewClient({ orgId }: { orgId: string }) {
   if (!open) return (
     <button onClick={() => setOpen(true)}
       className="rounded-full bg-ink text-paper font-semibold px-4 py-2 t-body hover:opacity-90 transition-opacity">
-      + New client
+      {label ?? "+ New client"}
     </button>
   );
 
