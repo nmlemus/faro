@@ -5,6 +5,7 @@ import Shell from "@/components/Shell";
 import StartJob from "@/components/StartJob";
 import Results from "@/components/Results";
 import DangerDelete from "@/components/DangerDelete";
+import ClientSettings from "@/components/ClientSettings";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,7 @@ export default async function ClientPage({ params }: { params: Promise<{ slug: s
     .from("org_members").select("role").eq("user_id", me.user?.id ?? "").limit(1);
   const staff = (membership?.[0]?.role ?? "client_viewer") !== "client_viewer";
   const owner = membership?.[0]?.role === "owner";
+  const canEdit = ["owner", "account_director"].includes(membership?.[0]?.role ?? "");
 
   const { data: methodRow } = await supabase
     .from("method_versions").select("manifest").order("created_at", { ascending: false }).limit(1);
@@ -57,6 +59,7 @@ export default async function ClientPage({ params }: { params: Promise<{ slug: s
             </p>
           </div>
           {client.business && <p className="t-body text-ink-2 mt-3 max-w-[56ch]">{client.business}</p>}
+          {canEdit && <div className="mt-4"><ClientSettings client={client} /></div>}
         </header>
 
         {!!metrics?.length && <Results rows={metrics} slug={slug} />}
