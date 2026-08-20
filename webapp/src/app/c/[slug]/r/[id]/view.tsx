@@ -242,10 +242,14 @@ export default function RunView(props: {
                 {props.staffView && <span className="t-eyebrow flex-none">{artifact.path}</span>}
               </span>
               <div className="flex items-center gap-4">
-                <a href={`/c/${props.slug}/r/${props.runId}/export?file=${encodeURIComponent(artifact.path)}`}
-                  target="_blank" rel="noopener"
+                <a href={`/c/${props.slug}/r/${props.runId}/export/pdf?file=${encodeURIComponent(artifact.path)}`}
                   className="t-mono text-cobalt-ink hover:underline underline-offset-2">
                   {t("Export PDF ↗")}
+                </a>
+                <a href={`/c/${props.slug}/r/${props.runId}/export?file=${encodeURIComponent(artifact.path)}`}
+                  target="_blank" rel="noopener"
+                  className="t-mono text-ink-3 hover:underline underline-offset-2">
+                  {lang === "es" ? "vista imprimible" : "print view"}
                 </a>
                 <button onClick={() => setOpen(null)} className="t-mono text-ink-3 hover:text-ink">close ✕</button>
               </div>

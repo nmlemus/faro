@@ -92,6 +92,14 @@ export default async function ExportPage({ params, searchParams }: {
           </span>
           <span>{t("Every number in this document carries its origin.")}</span>
         </div>
+        <a href={`/c/${slug}/r/${id}/export/pdf?file=${encodeURIComponent(file)}`}
+          className="no-print"
+          style={{ position: "fixed", right: "1.5rem", bottom: "4.6rem",
+                   background: "#2743E3", color: "#fff", textDecoration: "none",
+                   borderRadius: "999px", padding: ".7rem 1.4rem", fontWeight: 600,
+                   boxShadow: "0 8px 24px rgb(0 0 0 / .25)" }}>
+          {lang === "es" ? "Descargar PDF" : "Download PDF"}
+        </a>
         <PrintButton label={t("Print / save as PDF")} />
       </div>
     </div>
