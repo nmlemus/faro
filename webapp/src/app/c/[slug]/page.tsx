@@ -34,7 +34,16 @@ export default async function ClientPage({ params }: { params: Promise<{ slug: s
   const workflows = (methodRow?.[0]?.manifest?.workflows ?? []) as {
     id: string; name: string; description: string; needs: string;
     phases: number; gates: number; builds_on: string[] }[];
-  workflows.sort((a, b) => CHAIN.indexOf(a.id) - CHAIN.indexOf(b.id));
+  // the engagement decides which workflows this account buys
+  const ENGAGEMENT_SCOPE: Record<string, string[]> = {
+    audit: ["website-audit", "growth-audit"],
+    performance: ["website-audit", "growth-audit", "media-plan", "campaign-build",
+                  "optimization-loop", "monthly-report"],
+    full_funnel: CHAIN,
+  };
+  const scope = ENGAGEMENT_SCOPE[client.engagement] ?? CHAIN;
+  const offered = workflows.filter((w) => scope.includes(w.id));
+  offered.sort((a, b) => CHAIN.indexOf(a.id) - CHAIN.indexOf(b.id));
 
   const { data: runs } = await supabase
     .from("job_runs")
@@ -133,7 +142,7 @@ export default async function ClientPage({ params }: { params: Promise<{ slug: s
         {staff && (
           <div className="rise" style={d(2)}>
             <StartJob clientId={client.id} hasWebsite={!!client.website}
-              workflows={workflows}
+              workflows={offered}
               activeIds={(runs ?? [])
                 .filter((r) => r.status === "active")
                 .map((r) => (r.jobs as unknown as { workflow_id: string })?.workflow_id ?? "")} />

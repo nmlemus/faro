@@ -76,3 +76,27 @@ phases:
       - If the evidence this week supports NO movement, say so plainly. A quiet week
         recommendation is a valid deliverable; invented motion is not.
       - Write the deliverable in the client's language.
+
+  - id: execution
+    agent: media-buyer
+    produces: 03-execution.md
+    requires: [02-recommendations.md]
+    task: |
+      The money gate has approved the table in 02-recommendations.md. Execute it —
+      and ONLY it. Nothing outside the approved rows is yours to touch.
+
+      For each approved row, in order:
+      - If the channel's tool is connected (client profile -> connected_tools) and
+        the credential allows writes: run the platform CLI command that implements
+        the row (pause, budget change, shift). Paste the exact command and the
+        platform's REAL response as evidence. If the platform refuses (scope,
+        permissions), paste the refusal — that is evidence too.
+      - If the tool is not connected, or read-only: do NOT simulate. Write the
+        handoff block instead: platform, screen, setting, exact value to enter —
+        precise enough that a person executes it in two minutes without guessing.
+
+      Close with the status table: | row | executed / handed off / blocked | evidence |.
+      Every amount exactly as approved — an execution that "improves" on the
+      approved plan is a failure, not initiative.
+
+      Write the deliverable in the client's language.

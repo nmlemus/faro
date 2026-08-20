@@ -17,6 +17,8 @@ const FIELDS: { key: string; label: string; hint: string; long?: boolean; option
   { key: "business", label: "business", hint: "what they do, one line — every agent reads this first", long: true },
   { key: "icp", label: "ideal customer profile", hint: "who they sell to — targeting, tone and diagnosis all key off this", long: true },
   { key: "cadence", label: "cadence", options: CADENCES, hint: "content rhythm for the content engine" },
+  { key: "engagement", label: "engagement", options: ["audit", "performance", "full_funnel"],
+    hint: "what this account buys — decides which work can be started" },
 ];
 
 export default function ClientSettings({ client }: { client: Record<string, string> }) {
