@@ -18,6 +18,7 @@ type Phase = {
   cost_usd: number | string | null;
 };
 type Artifact = { id: string; path: string; content: string | null; phase_id: string | null };
+type Version = { id: string; path: string; version: number; replaced_at: string; content: string };
 type Ev = { id: number; type: string; payload: Record<string, unknown>; created_at: string };
 type Decision = { phase_id: string; decision: string; decided_name: string | null;
                   feedback: string | null; created_at: string };
@@ -70,7 +71,7 @@ export default function RunView(props: {
   staffView?: boolean;
   lang?: Lang;
   slug: string; clientName: string; workflow: string; runId: string;
-  phases: Phase[]; artifacts: Artifact[]; initialEvents: Ev[]; decisions: Decision[];
+  phases: Phase[]; artifacts: Artifact[]; versions?: Version[]; initialEvents: Ev[]; decisions: Decision[];
 }) {
   const router = useRouter();
   const supabase = useMemo(() => supabaseBrowser(), []);
@@ -80,6 +81,7 @@ export default function RunView(props: {
   const t = tFor(lang);
   const docRef = useRef<HTMLDivElement | null>(null);
   const [leftOpen, setLeftOpen] = useState(true);
+  const [viewVersion, setViewVersion] = useState<number | null>(null);
   const [rightOpen, setRightOpen] = useState(true);
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState(false);
@@ -101,6 +103,7 @@ export default function RunView(props: {
   }, []);
 
   useEffect(() => {
+    setViewVersion(null);
     if (open) docRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [open]);
 
@@ -267,6 +270,22 @@ export default function RunView(props: {
                   {props.staffView && <span className="t-eyebrow flex-none">{artifact.path}</span>}
                 </span>
                 <span className="flex items-center gap-4 flex-none">
+                  {props.staffView && (() => {
+                    const hist = (props.versions ?? []).filter((v) => v.path === artifact.path);
+                    if (!hist.length) return null;
+                    return (
+                      <select className="field !py-1 !w-auto t-mono"
+                        value={viewVersion ?? "current"}
+                        onChange={(e) => setViewVersion(e.target.value === "current" ? null : Number(e.target.value))}>
+                        <option value="current">v{hist.length + 1} · {lang === "es" ? "actual" : "current"}</option>
+                        {[...hist].reverse().map((v) => (
+                          <option key={v.id} value={v.version}>
+                            v{v.version} · {new Date(v.replaced_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                          </option>
+                        ))}
+                      </select>
+                    );
+                  })()}
                   <a href={`/c/${props.slug}/r/${props.runId}/export/pdf?file=${encodeURIComponent(artifact.path)}`}
                     className="t-mono text-cobalt-ink hover:underline underline-offset-2">
                     {t("Export PDF ↗")}
@@ -279,7 +298,25 @@ export default function RunView(props: {
                 </span>
               </div>
               <div className="doc mx-auto">
-                <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{prepDoc(artifact.content.replace(/^#\s[^\n]*\n+/, ""))}</Markdown>
+                {(() => {
+                  const v = viewVersion != null
+                    ? (props.versions ?? []).find((x) => x.path === artifact.path && x.version === viewVersion)
+                    : null;
+                  const content = v?.content ?? artifact.content!;
+                  return (
+                    <>
+                      {v && (
+                        <p className="t-mono mb-4 px-3 py-2 rounded-lg"
+                           style={{ background: "var(--gate-soft)", color: "var(--gate)" }}>
+                          {lang === "es"
+                            ? `Versión ${v.version} — reemplazada el ${new Date(v.replaced_at).toLocaleString()}. Solo lectura.`
+                            : `Version ${v.version} — replaced ${new Date(v.replaced_at).toLocaleString()}. Read-only.`}
+                        </p>
+                      )}
+                      <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{prepDoc(content.replace(/^#\s[^\n]*\n+/, ""))}</Markdown>
+                    </>
+                  );
+                })()}
               </div>
             </section>
           ) : !gate && (

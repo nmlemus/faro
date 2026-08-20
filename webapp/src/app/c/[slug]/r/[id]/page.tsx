@@ -19,6 +19,8 @@ export default async function RunPage(
     .from("phases").select("*").eq("run_id", id).order("seq");
   const { data: artifacts } = await supabase
     .from("artifacts").select("id,path,content,phase_id").eq("run_id", id).order("path");
+  const { data: versions } = await supabase
+    .from("artifact_versions").select("id,path,version,replaced_at,content").eq("run_id", id).order("version");
   const { data: events } = await supabase
     .from("activity_events").select("id,type,payload,created_at")
     .eq("run_id", id).order("id", { ascending: false }).limit(80);
@@ -44,6 +46,7 @@ export default async function RunPage(
       runId={run.id}
       phases={phases ?? []}
       artifacts={artifacts ?? []}
+      versions={versions ?? []}
       initialEvents={(events ?? []).reverse()}
       decisions={decisions ?? []}
       owner={owner}
