@@ -31,6 +31,12 @@ One line per number. `channel` empty means account-wide. `period` is an ISO week
 (2026-W34) or month (2026-08). Only measured numbers go here — an inferred or
 estimated figure never enters a metrics block.
 
+Metric names are a vocabulary, not prose: the same concept always gets the same
+name, or the account's charts split one series into two. Use these when they
+apply — `spend`, `cac`, `cpc`, `cpm`, `ctr`, `impressions`, `clicks`,
+`conversions`, `paid_customers`, `churn`, `mrr` — and before inventing a new
+name, check what earlier deliverables in this run already used.
+
 ## 1c. Show comparisons and trends as charts
 
 When a deliverable compares quantities (budget per channel, spend vs plan) or

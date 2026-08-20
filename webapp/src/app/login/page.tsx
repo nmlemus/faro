@@ -1,22 +1,10 @@
 "use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { useActionState } from "react";
+import { loginAction, type LoginState } from "./actions";
 
 export default function Login() {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [err, setErr] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true); setErr("");
-    const { error } = await supabaseBrowser().auth.signInWithPassword({ email, password });
-    if (error) { setErr(error.message); setBusy(false); return; }
-    router.push("/"); router.refresh();
-  }
+  const [state, formAction, busy] = useActionState<LoginState, FormData>(loginAction, {});
+  const err = state.error ?? "";
 
   return (
     <main className="min-h-screen grid lg:grid-cols-2">
@@ -36,7 +24,7 @@ export default function Login() {
           </p>
         </div>
         <p className="t-mono text-ink-3 rise" style={{ "--d": "420ms" } as React.CSSProperties}>
-          six practices · fifty-one methods · nine gates
+          audits, media plans, weekly optimization — run by AI, signed by people
         </p>
       </section>
 
@@ -52,19 +40,22 @@ export default function Login() {
             <div className="t-eyebrow mb-2">sign in</div>
             <h2 className="t-h1">Your account is waiting.</h2>
           </div>
-          <form onSubmit={submit} className="flex flex-col gap-4 rise" style={{ "--d": "220ms" } as React.CSSProperties}>
+          <form action={formAction} className="flex flex-col gap-4 rise" style={{ "--d": "220ms" } as React.CSSProperties}>
             <label className="flex flex-col gap-1.5">
               <span className="t-eyebrow">Email</span>
-              <input className="field" value={email} onChange={(e) => setEmail(e.target.value)} type="email" required autoFocus />
+              <input className="field" name="email" defaultValue={state.email ?? ""} type="email" required autoFocus autoComplete="email" />
             </label>
             <label className="flex flex-col gap-1.5">
               <span className="t-eyebrow">Password</span>
-              <input className="field" value={password} onChange={(e) => setPassword(e.target.value)} type="password" required />
+              <input className="field" name="password" type="password" required autoComplete="current-password" />
             </label>
             {err && <p className="t-body text-danger">{err}</p>}
             <button disabled={busy} className="btn btn-ink mt-1">
               {busy ? "Signing in…" : "Sign in"}
             </button>
+            <p className="t-mono text-ink-3 mt-2">
+              Trouble signing in? Write to your account director — they reset access.
+            </p>
           </form>
         </div>
       </section>

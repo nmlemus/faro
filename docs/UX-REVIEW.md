@@ -27,7 +27,7 @@ Status legend: [x] fixed · [ ] open
 - [ ] Client portal chrome is 100% English for Spanish-speaking clients →
       localize portal chrome by client language; language as select
 - [ ] Document opens below the fold with no scroll → auto-scroll or side panel
-- [ ] No forgot-password / support link on login
+- [~] No forgot-password on login — support line added ('write to your account director'); email reset flow pending SMTP
 - [ ] Desk table rows glow on hover but only the name is a link → whole row link
 - [ ] Out-of-scope URL shows default Next 404 → branded 404 with way back
 
@@ -39,8 +39,8 @@ Status legend: [x] fixed · [ ] open
       "Save as PDF" opens print dialog
 - [ ] Deliverable meta line runs together ("Date: … Prepared for: …")
 - [ ] Settings: language/cadence free-text → selects; no cancel; tiny notice
-- [ ] Login panel copy "six practices · fifty-one methods · nine gates" —
-      internal poetry, meaningless to clients
+- [x] Login panel copy — now "audits, media plans, weekly optimization — run
+      by AI, signed by people"
 
 ## Keep (auditor's list of what works)
 Visual identity & contrast; signed pipeline provenance ("Approved by Noel");
@@ -50,3 +50,16 @@ login error UX (keeps email, inline red).
 ## Coverage gap
 No open gate existed during the audit — the client-approves-a-publish-gate flow
 (the trust-critical moment) is still unaudited. Audit it when one is live.
+
+## Supplement (2026-08-20, second pass)
+- [x] Dead controls pre-hydration: login lost typed credentials (controlled
+      inputs reset on hydrate; hit by both auditors AND the owner earlier) →
+      login is a native form via server action: works without JS, friendly
+      error, keeps email without putting it in the URL
+- [x] Duplicate metric card PAID vs PAID CUSTOMERS → not corruption: two
+      deliverables named the same concept differently; data normalized and
+      AGENCY.md rule 1b now carries a canonical metric vocabulary
+- [x] 404 on demo-saas media-plan run → not a bug: shared-cookie interference
+      between two simultaneous audit sessions; run opens fine as owner
+- [ ] Still uncovered: the client-approves-a-publish-gate flow (no open gate
+      existed during either pass)
