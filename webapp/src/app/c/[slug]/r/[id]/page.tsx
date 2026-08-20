@@ -26,6 +26,11 @@ export default async function RunPage(
     .in("phase_id", (phases ?? []).map((p) => p.id))
     .order("created_at");
 
+  const { data: me } = await supabase.auth.getUser();
+  const { data: membership } = await supabase
+    .from("org_members").select("role").eq("user_id", me.user?.id ?? "").limit(1);
+  const owner = membership?.[0]?.role === "owner";
+
   const running = (phases ?? []).some((p) => p.status === "running");
   return (
     <Shell working={running}>
@@ -38,6 +43,7 @@ export default async function RunPage(
       artifacts={artifacts ?? []}
       initialEvents={(events ?? []).reverse()}
       decisions={decisions ?? []}
+      owner={owner}
     />
     </Shell>
   );

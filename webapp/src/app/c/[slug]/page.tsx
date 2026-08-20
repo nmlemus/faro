@@ -4,6 +4,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import Shell from "@/components/Shell";
 import StartJob from "@/components/StartJob";
 import Results from "@/components/Results";
+import DangerDelete from "@/components/DangerDelete";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,7 @@ export default async function ClientPage({ params }: { params: Promise<{ slug: s
   const { data: membership } = await supabase
     .from("org_members").select("role").eq("user_id", me.user?.id ?? "").limit(1);
   const staff = (membership?.[0]?.role ?? "client_viewer") !== "client_viewer";
+  const owner = membership?.[0]?.role === "owner";
 
   const { data: methodRow } = await supabase
     .from("method_versions").select("manifest").order("created_at", { ascending: false }).limit(1);
@@ -114,6 +116,14 @@ export default async function ClientPage({ params }: { params: Promise<{ slug: s
                 .filter((r) => r.status === "active")
                 .map((r) => (r.jobs as unknown as { workflow_id: string })?.workflow_id ?? "")} />
           </div>
+        )}
+        {owner && (
+          <footer className="rise pt-4" style={{ borderTop: "1px solid var(--rule-soft)" }}>
+            <DangerDelete
+              label={`delete ${client.name} — the account, its runs, documents and results`}
+              confirmLabel={`This removes ${client.name} and everything under it. No undo.`}
+              rpc="delete_client" args={{ p_client: client.id }} redirectTo="/" />
+          </footer>
         )}
       </main>
     </Shell>

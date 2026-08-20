@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import ChartBlock from "@/components/ChartBlock";
+import DangerDelete from "@/components/DangerDelete";
 import { prepDoc } from "@/lib/md";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
@@ -62,6 +63,7 @@ const mdComponents = {
 };
 
 export default function RunView(props: {
+  owner?: boolean;
   slug: string; clientName: string; workflow: string; runId: string;
   phases: Phase[]; artifacts: Artifact[]; initialEvents: Ev[]; decisions: Decision[];
 }) {
@@ -127,6 +129,12 @@ export default function RunView(props: {
           <h1 className="t-display mt-2 font-[family-name:var(--font-spline-mono)] !text-[clamp(1.5rem,3.2vw,2.2rem)] !tracking-tight">
             {props.workflow}
           </h1>
+          {props.owner && (
+            <div className="mt-3">
+              <DangerDelete label="delete this run" confirmLabel="Run, documents and results go. No undo."
+                rpc="delete_run" args={{ p_run: props.runId }} redirectTo={`/c/${props.slug}`} />
+            </div>
+          )}
         </header>
 
         {confirmation && (
