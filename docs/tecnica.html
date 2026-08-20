@@ -1,0 +1,373 @@
+<title>Faro · Documentación técnica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;500;600&family=Spline+Sans+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --paper:#FAF9F4; --paper-2:#F2F0E9; --paper-3:#E8E5DB;
+    --ink:#131518; --ink-2:#46494E; --ink-3:#5C6066;
+    --rule:#DDD9CD; --cobalt:#2743E3; --cobalt-ink:#1D33B8; --cobalt-soft:#E4E8FC;
+    --gate:#7D4E05; --gate-soft:#F8E8CC; --ok:#1F6B45; --card:#FFFFFF;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:#101114; --paper-2:#17181C; --paper-3:#1F2126;
+      --ink:#E9E7E1; --ink-2:#B4B2AC; --ink-3:#A9ACB2;
+      --rule:#2A2C31; --cobalt:#7D8FF7; --cobalt-ink:#9DACF9; --cobalt-soft:#1C2340;
+      --gate:#E0A33C; --gate-soft:#2E2312; --ok:#7FCB9C; --card:#16181D;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:#101114; --paper-2:#17181C; --paper-3:#1F2126;
+    --ink:#E9E7E1; --ink-2:#B4B2AC; --ink-3:#A9ACB2;
+    --rule:#2A2C31; --cobalt:#7D8FF7; --cobalt-ink:#9DACF9; --cobalt-soft:#1C2340;
+    --gate:#E0A33C; --gate-soft:#2E2312; --ok:#7FCB9C; --card:#16181D;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Instrument Sans",system-ui,sans-serif; font-size:15px; line-height:1.65; }
+  header.hero { border-bottom:1px solid var(--rule); padding:3.2rem 1.5rem 2.4rem; }
+  .wrap { max-width:52rem; margin:0 auto; padding:0 1.5rem; }
+  .brand { display:flex; align-items:center; gap:.6rem; margin-bottom:1.2rem; }
+  .beacon { width:12px; height:12px; border-radius:50%; background:var(--cobalt); display:inline-block; }
+  .wordmark { font-family:Fraunces,serif; font-weight:600; font-size:1.1rem; }
+  .wordmark b { color:var(--cobalt); }
+  h1 { font-family:Fraunces,serif; font-weight:500; font-size:2.3rem; line-height:1.1; margin:.2rem 0 .6rem; text-wrap:balance; }
+  h2 { font-family:Fraunces,serif; font-weight:600; font-size:1.5rem; margin:3rem 0 .8rem; }
+  h3 { font-size:1.02rem; font-weight:600; margin:1.8rem 0 .5rem; }
+  p, li { color:var(--ink-2); max-width:65ch; }
+  strong { color:var(--ink); }
+  .eyebrow { font-family:"Spline Sans Mono",monospace; font-size:.68rem; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--ink-3); }
+  code { font-family:"Spline Sans Mono",monospace; font-size:.82em; background:var(--paper-3);
+    padding:.1em .35em; border-radius:5px; }
+  pre.code { background:var(--paper-2); border:1px solid var(--rule); border-radius:12px;
+    padding:1rem 1.2rem; overflow-x:auto; font-family:"Spline Sans Mono",monospace; font-size:.78rem; line-height:1.6; }
+  pre.code code { background:none; padding:0; }
+  pre.mermaid { background:var(--card); border:1px solid var(--rule); border-radius:14px;
+    padding:1.2rem; overflow-x:auto; display:flex; justify-content:center; }
+  table { border-collapse:collapse; width:100%; margin:1rem 0; font-size:.86rem; }
+  th { text-align:left; font-family:"Spline Sans Mono",monospace; font-size:.66rem; letter-spacing:.09em;
+    text-transform:uppercase; color:var(--ink-3); padding:.5rem .7rem; border-bottom:1px solid var(--rule); }
+  td { padding:.45rem .7rem; border-bottom:1px solid var(--rule); color:var(--ink-2); vertical-align:top; }
+  td code { white-space:nowrap; }
+  .tablewrap { overflow-x:auto; }
+  .note { border-left:3px solid var(--cobalt); background:var(--cobalt-soft); border-radius:0 10px 10px 0;
+    padding:.8rem 1.1rem; margin:1.2rem 0; }
+  .note p { margin:.2rem 0; }
+  .principle { border-left:3px solid var(--gate); background:var(--gate-soft); border-radius:0 10px 10px 0;
+    padding:.8rem 1.1rem; margin:1.2rem 0; }
+  main { padding-bottom:5rem; }
+  nav.toc { margin:1.6rem 0 0; display:flex; flex-wrap:wrap; gap:.5rem 1.2rem; }
+  nav.toc a { font-family:"Spline Sans Mono",monospace; font-size:.72rem; color:var(--cobalt-ink);
+    text-decoration:none; border-bottom:1px dotted var(--cobalt-ink); }
+  section { scroll-margin-top:1rem; }
+</style>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="brand"><span class="beacon"></span><span class="wordmark">faro<b>.</b></span>
+      <span class="eyebrow">documentación técnica · v2026-08</span></div>
+    <h1>Cómo está construido Faro</h1>
+    <p>Todo lo necesario para desarrollar, operar y extender la plataforma:
+       arquitectura, modelo de datos, ciclo de vida de una corrida, seguridad,
+       despliegue y las decisiones que explican por qué es así.</p>
+    <nav class="toc">
+      <a href="#arquitectura">arquitectura</a><a href="#metodo">el método</a>
+      <a href="#datos">modelo de datos</a><a href="#ciclo">ciclo de vida</a>
+      <a href="#seguridad">seguridad y roles</a><a href="#conectores">conectores</a>
+      <a href="#costos">costos</a><a href="#i18n">i18n</a>
+      <a href="#deploy">despliegue</a><a href="#dev">desarrollo local</a>
+      <a href="#adr">decisiones</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+<section id="arquitectura">
+<h2>1. Arquitectura: tres planos</h2>
+<p>Faro separa estrictamente <strong>dónde vive cada cosa</strong>. Lo que pasa va a
+Postgres; cómo se trabaja va a git; quién ejecuta es un proceso sin estado.
+Esa separación es la que hace el sistema vendible: un comprador se lleva el
+método (git) y lo despliega sobre su propia infraestructura.</p>
+
+<pre class="mermaid">
+flowchart LR
+  subgraph P["PLATFORM · Supabase + Next.js"]
+    UI["Portal (Next.js 15)\ndesk · cuentas · runs · gates"]
+    PG[("Postgres + RLS\nestado completo")]
+    RT["Realtime\nfeed en vivo"]
+    VA["Vault\ncredenciales cifradas"]
+    AU["Auth\nroles por org y cliente"]
+  end
+  subgraph E["ENGINE · Python sin estado"]
+    W["worker.py\nclaim → claude -p → finish"]
+  end
+  subgraph M["METHOD · Git (la IP vendible)"]
+    WF["workflows/*.yaml\nfases + gates"]
+    AG["agents/*\n8 personas"]
+    SK[".vendor + skills\ncatálogo pineado"]
+    HR["AGENCY.md\nreglas de la casa"]
+  end
+  UI -- "intent (request_run)" --> PG
+  W -- "RPCs vía PostgREST" --> PG
+  W -- "lee el método" --> M
+  PG -- "cambios" --> RT --> UI
+  VA -- "engine_credentials" --> W
+</pre>
+
+<h3>Platform</h3>
+<p>Next.js 15 (App Router, TS, Tailwind v4) sobre Supabase: Postgres con RLS en
+cada tabla, Auth para sesiones, Realtime para el feed en vivo y Vault para
+secretos. El portal <strong>nunca escribe estado de ejecución</strong>: escribe
+<em>intención</em> (crear un run, decidir un gate) mediante funciones RPC
+<code>SECURITY DEFINER</code> que validan el rol del que llama.</p>
+
+<h3>Engine</h3>
+<p>Un proceso Python de stdlib puro (<code>engine/worker.py</code>) que habla con
+Postgres únicamente vía PostgREST — cero drivers de base de datos. El loop:
+materializa corridas pedidas por la UI (<code>expand_runs</code>), crea las
+recurrentes por período (<code>ensure_recurring_runs</code>), reclama una fase
+(<code>claim_phase</code>, con <code>FOR UPDATE SKIP LOCKED</code>: <strong>Postgres
+es la cola</strong>), ejecuta <code>claude -p</code> con streaming de eventos, y
+cierra con <code>finish_phase</code>. Un reaper devuelve a la cola las fases
+huérfanas de workers muertos. Paralelismo = número de procesos worker; se
+reparten fases sin colisión por el propio lock de Postgres.</p>
+
+<h3>Method</h3>
+<p>Workflows (fases, dependencias, gates con clase), agentes (persona + skills),
+el catálogo de skills vendorizado y pineado (<code>marketingskills v2.10.0</code>,
+MIT) y <code>AGENCY.md</code> — las reglas que se inyectan en <em>todas</em> las
+fases. Cada bootstrap estampa el SHA de git en <code>method_versions</code>: toda
+corrida sabe con qué versión del método se hizo. <strong>El método nunca entra a
+la base de datos.</strong></p>
+</section>
+
+<section id="metodo">
+<h2>2. El método: workflows, agentes, reglas</h2>
+<div class="tablewrap"><table>
+<tr><th>workflow</th><th>fases</th><th>gates</th><th>recurrencia</th></tr>
+<tr><td><code>website-audit</code></td><td>capture → positioning → conversion → discoverability → report</td><td>craft, publish</td><td>—</td></tr>
+<tr><td><code>growth-audit</code></td><td>intake → measurement → landscape → diagnosis → recommendations</td><td>craft, money</td><td>—</td></tr>
+<tr><td><code>media-plan</code></td><td>objectives → measurement → plan</td><td>measurement, money</td><td>—</td></tr>
+<tr><td><code>campaign-build</code></td><td>structure → ads → landing → tracking → launch-pack</td><td>craft, publish</td><td>—</td></tr>
+<tr><td><code>optimization-loop</code></td><td>performance → recommendations → execution</td><td>money</td><td>semanal</td></tr>
+<tr><td><code>monthly-report</code></td><td>compile → report</td><td>publish</td><td>mensual</td></tr>
+<tr><td><code>launch</code> / <code>content-engine</code></td><td>posicionamiento, oferta, calendario, piezas…</td><td>craft, publish</td><td>según cadencia</td></tr>
+</table></div>
+
+<p>Conceptos que cruzan todos los workflows:</p>
+<ul>
+<li><strong>Gates con clase</strong> (<code>money · craft · publish · measurement</code>):
+cada pausa declara qué tipo de decisión es. La matriz rol × clase decide quién
+puede firmarla (un cliente solo aprueba <code>publish</code> de su cuenta).</li>
+<li><strong>builds_on</strong>: un workflow declara sobre qué trabajos previos construye;
+el engine inyecta el último entregable de esos jobs en el prompt. La semana N
+del loop siempre conoce la N−1.</li>
+<li><strong>Intake</strong>: el brief que el humano escribe al arrancar viaja a todas las
+fases como "What the human asked for", con la instrucción de no sustituirlo.</li>
+<li><strong>Engagement</strong> (<code>audit · performance · full_funnel</code>): qué compra
+la cuenta; limita qué workflows se pueden arrancar.</li>
+</ul>
+
+<div class="principle">
+<p><strong>Las reglas de la casa (AGENCY.md)</strong> se inyectan en cada fase. Las que
+definen el producto: <em>1) ningún número sin origen</em> (todo dato cita su comando o
+archivo fuente); <em>1b) los KPIs medidos viajan además como datos</em> (bloque
+<code>```metrics</code> con vocabulario canónico → tabla <code>metrics</code> → charts);
+<em>1c) comparaciones y tendencias llevan gráfica</em> (bloque <code>```chart</code>,
+solo con números ya presentes en el documento); <em>3) citar el skill en artefactos
+internos, nunca filenames internos en el entregable final</em>; <em>5) nada se publica
+sin gate humano</em>; <em>6) si una fase no puede hacerse, se declara</em> — un hueco
+de datos jamás se rellena con estimaciones.</p>
+</div>
+</section>
+
+<section id="datos">
+<h2>3. Modelo de datos</h2>
+<pre class="mermaid">
+erDiagram
+  orgs ||--o{ org_members : "roles"
+  orgs ||--o{ clients : ""
+  clients ||--o{ client_members : "acceso de clientes"
+  clients ||--o{ jobs : ""
+  jobs ||--o{ job_runs : "run_key por período"
+  job_runs ||--o{ phases : "estado real"
+  phases ||--o{ gate_decisions : "firmas"
+  job_runs ||--o{ artifacts : "documentos completos"
+  job_runs ||--o{ activity_events : "feed"
+  job_runs ||--o{ metrics : "KPIs con origen"
+  clients ||--o{ credentials : "→ Vault"
+  orgs ||--o{ audit_log : "quién hizo qué"
+  orgs ||--o{ method_versions : "SHA del método"
+</pre>
+<ul>
+<li><code>phases.status</code>: <code>blocked → pending → running → awaiting_gate → done | failed | rejected</code>.
+Cada fase guarda además <code>claimed_by</code>, timestamps, <code>cost_usd</code> y tokens.</li>
+<li><code>artifacts.content</code> guarda el <strong>markdown completo</strong> del
+entregable — no hay archivos sueltos que respaldar aparte de Postgres.</li>
+<li><code>metrics</code>: una fila por KPI medido con <code>source_path</code> al documento
+que lo contiene. Borrar un run borra sus métricas en cascada — un número sin su
+documento de origen no puede existir.</li>
+<li><code>gate_decisions</code>: la decisión, quién la firmó (<code>decided_name</code>) y
+el feedback textual, que se inyecta en el redo si fue rechazo.</li>
+</ul>
+</section>
+
+<section id="ciclo">
+<h2>4. Ciclo de vida de una corrida</h2>
+<pre class="mermaid">
+sequenceDiagram
+  actor H as Humano (portal)
+  participant PG as Postgres (RLS + RPCs)
+  participant W as Worker
+  participant C as claude -p
+  H->>PG: request_run(client, workflow, intake)
+  Note over PG: valida rol y preflight,<br/>crea job + run (intención)
+  W->>PG: expand_runs() — materializa fases del método
+  loop por fase
+    W->>PG: claim_phase() FOR UPDATE SKIP LOCKED
+    W->>C: prompt = AGENCY.md + perfil + intake +<br/>trabajos previos + catálogo de skills + tarea
+    C-->>PG: activity_events (líneas humanizadas + raw)
+    C->>W: entregable (markdown)
+    W->>PG: finish_phase(content) + metrics extraídas
+  end
+  Note over PG: fase con gate → awaiting_gate
+  H->>PG: decide_gate(approve | reject + feedback)
+  PG->>PG: apply_gate_decision — firma en gate_decisions,<br/>desbloquea la siguiente fase o re-encola el redo
+</pre>
+<p>Detalles operativos: cada fase corre en un directorio temporal que se destruye
+al terminar; el worker exporta las credenciales del cliente (descifradas de
+Vault) como variables de entorno y agrega los CLIs del vendor al PATH; los
+eventos llegan al portal por Realtime sin polling. Si un worker muere a mitad
+de fase, el reaper la detecta (pid muerto en el mismo host, o 15 min sin
+eventos) y la devuelve a <code>pending</code> — las fases son idempotentes.</p>
+</section>
+
+<section id="seguridad">
+<h2>5. Seguridad y roles</h2>
+<div class="tablewrap"><table>
+<tr><th>rol</th><th>ve</th><th>decide gates</th><th>administra</th></tr>
+<tr><td><code>owner</code></td><td>todo</td><td>todas las clases</td><td>settings, conectores, borrado, miembros</td></tr>
+<tr><td><code>account_director</code></td><td>todo</td><td>money · craft · publish · measurement</td><td>settings de cuentas</td></tr>
+<tr><td><code>specialist / analyst</code></td><td>todo</td><td>craft · measurement</td><td>—</td></tr>
+<tr><td><code>client_viewer</code></td><td>solo su(s) cuenta(s)</td><td>solo <code>publish</code> de su cuenta</td><td>—</td></tr>
+</table></div>
+<ul>
+<li><strong>RLS en todas las tablas</strong>, con helpers <code>SECURITY DEFINER</code>
+(<code>is_staff</code>, <code>can_see_client</code>, <code>can_decide_gate</code> = matriz
+rol × clase). La única escritura autenticada directa es la decisión de gate.</li>
+<li><strong>Vault</strong>: un secreto JSON por (cliente, tool). Solo
+<code>engine_credentials()</code> lo descifra, y solo <code>service_role</code> puede
+ejecutarla — un usuario del portal no puede leer secretos ni con SQL.</li>
+<li><strong>Vista de cliente</strong>: los costos AI, el log de agentes y los slugs
+técnicos existen solo para staff. El cliente ve pipeline firmado, documentos
+con nombre humano y resultados.</li>
+<li><strong>audit_log</strong>: cada request_run, decisión, conexión/desconexión de
+credencial y borrado queda firmado con nombre. Los borrados (owner-only)
+cascadean y se confirman tipeando el nombre de la cuenta.</li>
+</ul>
+</section>
+
+<section id="conectores">
+<h2>6. Conectores</h2>
+<p>El catálogo (~52) se parsea del registry del vendor al manifest del método:
+id, variables de entorno requeridas y guía de setup. El owner conecta desde la
+web: el secreto va a Vault (<code>set_connector</code>), el flag del cliente pasa a
+<code>true</code> y queda auditado <em>sin el valor</em>. En cada fase, el worker
+inyecta las credenciales como env vars y el agente usa el CLI correspondiente
+(<code>ga4</code>, <code>meta-ads</code>, <code>google-ads</code>…), pegando comando y
+respuesta real como evidencia. <strong>Tool no conectado = hueco declarado</strong>,
+nunca un número inventado. La fase <code>execution</code> del loop ejecuta cambios
+reales solo tras el gate de dinero, y solo lo aprobado.</p>
+</section>
+
+<section id="costos">
+<h2>7. Costos y métricas</h2>
+<p>El evento <code>result</code> de cada sesión claude deja en la fase
+<code>cost_usd</code>, <code>tokens_in</code> (incluida caché) y <code>tokens_out</code>.
+El desk agrega el mes en curso por cuenta y por organización; cada gate muestra
+lo que costó producir aquello que se está aprobando. Las métricas de negocio
+(spend, CAC, conversiones…) se extraen de los bloques <code>```metrics</code> de los
+entregables con su documento de origen, se deduplican por período en lectura y
+alimentan los tiles con sparklines de cada cuenta.</p>
+</section>
+
+<section id="i18n">
+<h2>8. Internacionalización</h2>
+<p>Resolución: cookie del selector (topbar y login) → <code>Accept-Language</code> del
+navegador → idioma del cliente (para viewers) → inglés. Diccionario en
+<code>lib/i18n.ts</code>; nombres de workflows/fases/documentos como vocabulario
+traducido en <code>lib/names.ts</code>. El <em>contenido</em> de los entregables sigue
+el <code>language</code> de cada cuenta y el export a PDF usa el idioma del cliente
+(el documento le pertenece). Agregar un idioma = rellenar dos diccionarios.</p>
+</section>
+
+<section id="deploy">
+<h2>9. Despliegue</h2>
+<pre class="mermaid">
+flowchart TB
+  subgraph HOY["Desarrollo (local)"]
+    D1["Supabase CLI en Docker\n:54321-54324"]
+    D2["next start :3000"]
+    D3["python engine/worker.py × N"]
+  end
+  subgraph PROD["Producción (por tenant o compartido)"]
+    P1["Supabase\n(cloud o self-hosted)"]
+    P2["Portal Next.js\n(Vercel / contenedor)"]
+    P3["Workers en contenedor\n+ claude CLI + node + git del método"]
+  end
+  HOY -. "mismas migraciones,\nmismo método en git" .-> PROD
+</pre>
+<ul>
+<li><strong>Esquema como código</strong>: 13 migraciones SQL en
+<code>supabase/migrations/</code>; <code>bootstrap.py</code> crea usuarios/org, publica
+el manifest del método y es idempotente — nunca toca clientes que ya viven en
+la base ni resucita corridas borradas.</li>
+<li><strong>Requisitos del worker</strong>: Python 3.12+, <code>claude</code> CLI
+autenticado, Node 18+ (CLIs del vendor), checkout del método. Env:
+<code>SUPABASE_URL</code>, <code>SERVICE_ROLE_KEY</code>.</li>
+<li><strong>Modelo de venta</strong>: el comprador despliega Platform + Engine donde
+quiera; el método se licencia como repositorio. Multi-tenant por
+<code>org_id</code> en cada tabla desde el día uno.</li>
+</ul>
+</section>
+
+<section id="dev">
+<h2>10. Desarrollo local</h2>
+<pre class="code"><code># stack de datos
+supabase start                      # Postgres/Auth/Realtime/Vault en :54321-54324
+psql -f supabase/migrations/*.sql   # o supabase db push
+python3 engine/bootstrap.py         # org, usuarios, manifest del método
+
+# portal
+cd webapp && npm i && npx next build && npx next start -p 3000
+# login dev de un clic (solo contra Supabase local): owner / client
+
+# engine
+python3 engine/worker.py            # loop; --once para una fase; enqueue &lt;slug&gt; &lt;workflow&gt;
+</code></pre>
+<p>Convenciones: cambios de método con <code>[ADR]</code> en el commit; verificación
+visual con screenshot antes de declarar hecho un cambio de UI; los tests de
+escenarios usan el LLM guionado del repo para no gastar sesiones reales.</p>
+</section>
+
+<section id="adr">
+<h2>11. Decisiones que explican el diseño</h2>
+<div class="tablewrap"><table>
+<tr><th>decisión</th><th>por qué</th></tr>
+<tr><td>Postgres es la cola (<code>SKIP LOCKED</code>)</td><td>cero infraestructura extra; N workers escalan sin coordinador</td></tr>
+<tr><td>El método vive en git, no en la DB</td><td>es la IP vendible; versionable, auditable, portable</td></tr>
+<tr><td>Engine solo por PostgREST/RPC</td><td>sin drivers ni pool; la superficie de escritura son 6 funciones auditables</td></tr>
+<tr><td>La ejecución post-gate es una fase del método</td><td>el engine se mantiene tonto; una fase ya sabe correr CLIs y citar evidencia</td></tr>
+<tr><td>Métricas extraídas de los entregables</td><td>"todo número con origen" verificable por máquina; sin segunda vía de escritura</td></tr>
+<tr><td>Export = vista imprimible, no generador PDF</td><td>cero dependencias; mismo RLS; el navegador hace el PDF</td></tr>
+<tr><td>Costos por fase desde el evento <code>result</code></td><td>margen real por cuenta sin instrumentación extra</td></tr>
+</table></div>
+<div class="note"><p>El registro completo de decisiones (append-only) vive en
+<code>~/.devtrace/decisions/agency.md</code>; los hallazgos y estado del review UX en
+<code>docs/UX-REVIEW.md</code>; investigación de mercado y modelo operativo en
+<code>docs/MARKET-RESEARCH.md</code> y <code>docs/OPERATING-MODEL.md</code>.</p></div>
+</section>
+
+</main>

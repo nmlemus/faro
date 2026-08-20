@@ -1,0 +1,208 @@
+<title>Faro · Guía para agencias</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;500;600&family=Spline+Sans+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --paper:#FAF9F4; --paper-2:#F2F0E9; --paper-3:#E8E5DB;
+    --ink:#131518; --ink-2:#46494E; --ink-3:#5C6066;
+    --rule:#DDD9CD; --cobalt:#2743E3; --cobalt-ink:#1D33B8; --cobalt-soft:#E4E8FC;
+    --gate:#7D4E05; --gate-soft:#F8E8CC; --ok:#1F6B45; --ok-soft:#DFF0E5; --card:#FFFFFF;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:#101114; --paper-2:#17181C; --paper-3:#1F2126;
+      --ink:#E9E7E1; --ink-2:#B4B2AC; --ink-3:#A9ACB2;
+      --rule:#2A2C31; --cobalt:#7D8FF7; --cobalt-ink:#9DACF9; --cobalt-soft:#1C2340;
+      --gate:#E0A33C; --gate-soft:#2E2312; --ok:#7FCB9C; --ok-soft:#12271B; --card:#16181D;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:#101114; --paper-2:#17181C; --paper-3:#1F2126;
+    --ink:#E9E7E1; --ink-2:#B4B2AC; --ink-3:#A9ACB2;
+    --rule:#2A2C31; --cobalt:#7D8FF7; --cobalt-ink:#9DACF9; --cobalt-soft:#1C2340;
+    --gate:#E0A33C; --gate-soft:#2E2312; --ok:#7FCB9C; --ok-soft:#12271B; --card:#16181D;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Instrument Sans",system-ui,sans-serif; font-size:16px; line-height:1.7; }
+  .wrap { max-width:46rem; margin:0 auto; padding:0 1.5rem; }
+  header.hero { border-bottom:1px solid var(--rule); padding:3.5rem 1.5rem 2.6rem; }
+  .brand { display:flex; align-items:center; gap:.6rem; margin-bottom:1.4rem; }
+  .beacon { width:12px; height:12px; border-radius:50%; background:var(--cobalt); display:inline-block; }
+  .wordmark { font-family:Fraunces,serif; font-weight:600; font-size:1.1rem; }
+  .wordmark b { color:var(--cobalt); }
+  h1 { font-family:Fraunces,serif; font-weight:500; font-size:2.5rem; line-height:1.08; margin:.2rem 0 .8rem; text-wrap:balance; }
+  h1 em { font-style:italic; color:var(--cobalt-ink); }
+  h2 { font-family:Fraunces,serif; font-weight:600; font-size:1.55rem; margin:3rem 0 .8rem; text-wrap:balance; }
+  p, li { color:var(--ink-2); max-width:62ch; }
+  strong { color:var(--ink); }
+  .eyebrow { font-family:"Spline Sans Mono",monospace; font-size:.68rem; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--ink-3); }
+  .lede { font-size:1.12rem; }
+  pre.mermaid { background:var(--card); border:1px solid var(--rule); border-radius:14px;
+    padding:1.2rem; overflow-x:auto; display:flex; justify-content:center; margin:1.6rem 0; }
+  .card { background:var(--card); border:1px solid var(--rule); border-radius:14px; padding:1.2rem 1.4rem; margin:1rem 0; }
+  .card h3 { margin:.1rem 0 .4rem; font-size:1rem; }
+  .card p { margin:.3rem 0; font-size:.95rem; }
+  .promise { border-left:3px solid var(--gate); background:var(--gate-soft); border-radius:0 10px 10px 0;
+    padding:1rem 1.2rem; margin:1.4rem 0; }
+  .promise p { margin:.2rem 0; }
+  .ok { color:var(--ok); font-weight:600; }
+  table { border-collapse:collapse; width:100%; margin:1rem 0; font-size:.92rem; }
+  th { text-align:left; font-family:"Spline Sans Mono",monospace; font-size:.66rem; letter-spacing:.09em;
+    text-transform:uppercase; color:var(--ink-3); padding:.5rem .7rem; border-bottom:1px solid var(--rule); }
+  td { padding:.55rem .7rem; border-bottom:1px solid var(--rule); color:var(--ink-2); vertical-align:top; }
+  .tablewrap { overflow-x:auto; }
+  main { padding-bottom:5rem; }
+  .faq dt { font-weight:600; color:var(--ink); margin-top:1.2rem; }
+  .faq dd { margin:.3rem 0 0; color:var(--ink-2); max-width:62ch; }
+</style>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="brand"><span class="beacon"></span><span class="wordmark">faro<b>.</b></span>
+      <span class="eyebrow">guía para agencias · sin tecnicismos</span></div>
+    <h1>Qué es Faro y qué hace <em>por una agencia.</em></h1>
+    <p class="lede">Faro es una plataforma donde el trabajo repetitivo de una agencia
+    de medios — auditorías, planes de medios, optimización semanal, informes — lo
+    ejecuta un equipo de asistentes automáticos, y las decisiones que importan las
+    sigue tomando tu gente. Nada se publica, nada mueve presupuesto y nada llega
+    al cliente sin que una persona lo apruebe con su nombre.</p>
+  </div>
+</header>
+
+<main class="wrap">
+
+<h2>El problema que resuelve</h2>
+<p>En una agencia, el tiempo se va en producir: armar la auditoría, montar el plan,
+revisar qué pasó esta semana con las campañas, escribir el informe del mes. Son
+trabajos necesarios, pero repetitivos — y se comen las horas de la gente que
+debería estar pensando en la estrategia y hablando con el cliente.</p>
+<p>Además, cuando el equipo es chico, cada cliente nuevo significa contratar. La
+agencia crece en gastos al mismo ritmo que crece en cuentas.</p>
+<p><strong>Faro invierte esa cuenta:</strong> una o dos personas pueden operar una
+cartera completa, porque la producción corre sola y a ellas solo les llega lo que
+requiere criterio humano: aprobar, corregir o frenar.</p>
+
+<h2>Cómo funciona, en tres pasos</h2>
+<pre class="mermaid">
+flowchart LR
+  A["1 · Tú pides el trabajo\ny escribes el encargo:\nobjetivo, presupuesto, plazo"] --> B["2 · Faro lo produce\npaso a paso, mostrando\nqué hace y qué encontró"]
+  B --> C{"3 · Pausa obligatoria:\nuna persona revisa"}
+  C -- "aprobar" --> D["El trabajo sigue<br/>o se entrega"]
+  C -- "pedir cambios" --> B
+</pre>
+<p>Esa pausa del paso 3 se llama <strong>aprobación</strong> y es el corazón del
+sistema. Hay cuatro tipos, según lo que esté en juego:</p>
+<div class="tablewrap"><table>
+<tr><th>tipo</th><th>qué protege</th><th>ejemplo</th></tr>
+<tr><td><strong>Dinero</strong></td><td>nada mueve presupuesto solo</td><td>"proponemos pasar $1.800 de Meta a TikTok" — hasta que alguien no firma, no pasa nada</td></tr>
+<tr><td><strong>Calidad</strong></td><td>el criterio profesional</td><td>el diagnóstico de una auditoría antes de construir sobre él</td></tr>
+<tr><td><strong>Publicación</strong></td><td>lo que ve el mundo o el cliente</td><td>el informe mensual antes de enviarse; una pieza antes de salir</td></tr>
+<tr><td><strong>Medición</strong></td><td>qué se promete medir</td><td>el contrato de medición de un plan: qué se podrá probar y qué no</td></tr>
+</table></div>
+<p>El cliente también participa: puede entrar a su portal, ver su trabajo en su
+idioma, y aprobar él mismo las publicaciones de su cuenta. Solo eso — el resto
+de la cocina no la ve.</p>
+
+<div class="promise">
+<p><strong>La regla que lo gobierna todo: ningún número sin origen.</strong>
+Cada cifra en cada documento dice de dónde salió — qué herramienta la dio, qué
+archivo la contenía. Y cuando un dato no existe (una cuenta sin conectar, una
+herramienta sin acceso), Faro lo dice tal cual: <em>"esto no se pudo medir"</em>.
+Nunca lo rellena con un estimado. Un informe que confiesa sus huecos es un
+informe en el que se puede confiar.</p>
+</div>
+
+<h2>Qué produce hoy</h2>
+<div class="card"><h3>Auditoría de sitio web</h3>
+<p>Con solo la URL del cliente: qué dice el sitio, qué tan bien convierte, qué tan
+fácil es encontrarlo, comparado contra competidores reales. El abre-puertas
+comercial: se produce en horas, no semanas.</p></div>
+<div class="card"><h3>Auditoría de crecimiento</h3>
+<p>Con los datos del cliente (o sobre la auditoría del sitio): dónde está perdiendo
+plata, qué fuga cuesta más, y qué habría que arreglar primero — cada problema
+con su costo en la unidad que el cliente entiende (reservas, clientes, pedidos).</p></div>
+<div class="card"><h3>Plan de medios</h3>
+<p>Objetivos en números del negocio, el contrato de medición (qué se podrá probar),
+y el reparto de presupuesto por canal con piso y freno por canal. El documento
+que el cliente firma — y contra el que se juzga todo lo que sigue.</p></div>
+<div class="card"><h3>Optimización semanal</h3>
+<p>Cada semana: qué pasó de verdad con las campañas, y la tabla de movimientos —
+pausar, escalar, mover plata, refrescar creativos, probar algo. Cada fila con su
+evidencia. Detrás de la aprobación de dinero, se ejecuta: cambios automáticos
+donde hay acceso a la plataforma, y una lista de pasos exacta para hacerlo a
+mano donde no.</p></div>
+<div class="card"><h3>Informe mensual</h3>
+<p>El mes contado para el cliente: qué se invirtió, qué produjo, qué se decidió y
+por qué — en una página de narrativa más los números con su origen. Pasa por
+aprobación antes de que el cliente lo vea.</p></div>
+<div class="card"><h3>Campañas y contenido</h3>
+<p>Estructura de campañas, anuncios, landing y guion de lanzamiento; calendario y
+piezas de contenido en la voz de la marca, a la cadencia acordada.</p></div>
+
+<h2>Un lunes cualquiera con Faro</h2>
+<p>Entras y el tablero te dice en una línea qué necesita de ti:
+<em>"6 decisiones necesitan a una persona."</em> Debajo, la cola: primero las de
+dinero, la más vieja arriba. Abres la primera — la optimización semanal de una
+cuenta propone mover $1.800 entre canales; ves la evidencia, el costo de
+producirla, y apruebas o pides cambios escribiendo qué corregir (tus palabras se
+incorporan a la nueva versión). Sigues con la siguiente. En veinte minutos
+despachaste lo que antes era la mañana entera de tres personas.</p>
+<p>Mientras tanto el tablero muestra qué está corriendo en vivo, cuánto lleva
+gastado el mes en producción automática por cuenta (centavos y pocos dólares,
+no salarios), y qué entregó cada cuenta por última vez.</p>
+
+<h2>Qué NO hace Faro</h2>
+<ul>
+<li><strong>No publica ni mueve dinero solo.</strong> Toda acción con consecuencias
+pasa por una firma humana. Siempre.</li>
+<li><strong>No inventa datos.</strong> Sin acceso a una herramienta, declara el hueco
+y te dice exactamente qué conectar para cerrarlo.</li>
+<li><strong>No reemplaza el criterio.</strong> Produce el 90% del volumen; el 10% que
+decide — la estrategia, la relación, el "esto no va" — sigue siendo tuyo. Por
+diseño: las pausas existen para que ese criterio entre al circuito.</li>
+<li><strong>No esconde lo que hizo.</strong> Cada paso queda registrado: quién (persona
+o asistente), cuándo, qué produjo y quién lo aprobó. Si un cliente pregunta
+"¿de dónde salió este número?", la respuesta está a un clic.</li>
+</ul>
+
+<h2>Cómo encaja en tu agencia</h2>
+<div class="tablewrap"><table>
+<tr><th>si eres…</th><th>Faro te sirve para…</th></tr>
+<tr><td>Una agencia chica (1–5 personas)</td><td>operar una cartera de 10–20 cuentas sin contratar; competir en precio y velocidad con agencias grandes</td></tr>
+<tr><td>Una agencia establecida</td><td>quitarle producción repetitiva al equipo senior; estandarizar la calidad entre cuentas; márgenes visibles por cliente</td></tr>
+<tr><td>Un equipo de marketing interno</td><td>tener la disciplina de una agencia — planes firmados, optimización semanal, informes con origen — sin la agencia</td></tr>
+</table></div>
+<p>La adopción es gradual: se empieza por las auditorías (no requieren conectar
+nada, solo la URL), luego el plan de medios, y cuando se conectan las cuentas
+de anuncios y analítica, el ciclo semanal completo. Cada cuenta define qué
+compra: solo auditorías, desempeño, o el embudo completo.</p>
+
+<h2>Preguntas que siempre salen</h2>
+<dl class="faq">
+<dt>¿Esto va a publicar algo sin que yo me entere?</dt>
+<dd>No puede. La publicación es uno de los cuatro tipos de pausa obligatoria: hasta
+que alguien con permiso no firma, el trabajo no avanza. Y queda registro de
+quién firmó y cuándo.</dd>
+<dt>¿Qué ve mi cliente si le doy acceso?</dt>
+<dd>Su portal, en su idioma: sus trabajos con nombres normales ("Auditoría de
+crecimiento", no archivos técnicos), quién aprobó cada paso, sus resultados con
+gráficas, y sus documentos exportables a PDF con membrete. No ve costos
+internos, ni otras cuentas, ni la cocina.</dd>
+<dt>¿Y si el trabajo sale mal?</dt>
+<dd>Para eso existen las pausas: pides cambios escribiendo qué está mal, y esa
+corrección — tus palabras — se usa para rehacer el trabajo. El ciclo es revisar
+y corregir, no aceptar lo que salga.</dd>
+<dt>¿Cuánto cuesta operar?</dt>
+<dd>Cada trabajo muestra su costo de producción real (una auditoría completa
+cuesta del orden de un café, no de una jornada de trabajo). El tablero acumula
+el costo del mes por cuenta, así que el margen por cliente deja de ser una
+intuición.</dd>
+<dt>¿Necesito saber de tecnología para usarlo?</dt>
+<dd>No. Si sabes aprobar un documento y escribir qué cambiarías, sabes operar
+Faro. Conectar las cuentas de anuncios se hace una vez, con una guía paso a
+paso por plataforma.</dd>
+</dl>
+
+</main>
