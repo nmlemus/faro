@@ -6,6 +6,7 @@ Idempotent: run it as many times as you like.
     python3 engine/bootstrap.py
 """
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -20,6 +21,29 @@ core = importlib.machinery.SourceFileLoader("agency_cli", str(ROOT / "bin" / "ag
 
 STATUS_MAP = {"done": "done", "awaiting-gate": "awaiting_gate",
               "failed": "failed", "pending": "pending"}
+
+
+def connector_catalog():
+    """Parse the vendor's CLI auth table into the connector catalog: id, env
+    vars, and the integration doc when the vendor ships one."""
+    out = []
+    for readme in sorted(ROOT.glob(".vendor/*/tools/clis/README.md")):
+        clis_dir = readme.parent
+        integrations = clis_dir.parent / "integrations"
+        for line in readme.read_text().splitlines():
+            m = re.match(r"\|\s*`([a-z0-9-]+)`\s*\|(.+)\|", line)
+            if not m or not (clis_dir / f"{m.group(1)}.js").is_file():
+                continue
+            tool, envcell = m.group(1), m.group(2)
+            envs = re.findall(r"`([A-Z][A-Z0-9_]+)`", envcell)
+            doc = integrations / f"{tool}.md"
+            out.append({
+                "id": tool,
+                "envs": envs,
+                "envs_hint": envcell.strip(),
+                "doc": doc.read_text() if doc.is_file() else None,
+            })
+    return out
 
 
 def main():
@@ -50,6 +74,7 @@ def main():
             "needs": ("the URL alone" if w["id"] == "website-audit" else
                       "data files" if w["id"] == "growth-audit" else "brand context"),
         } for w in wfs.values()],
+        "connectors": connector_catalog(),
     }
     mv = db.insert("method_versions", [{"git_sha": sha, "manifest": manifest}],
                    upsert_on="git_sha")[0]

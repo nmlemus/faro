@@ -44,6 +44,7 @@ language: {client.get('language') or 'English'}
 business: "{client.get('business') or ''}"
 icp: "{client.get('icp') or ''}"
 cadence: "{client.get('cadence') or ''}"
+connected_tools: {json.dumps([k for k, v in (client.get('tools') or {}).items() if v])}
 tools:
 {tools or '  {}'}"""
 
@@ -195,14 +196,15 @@ def human_line(block):
     return "Working"
 
 
-def run_claude_streaming(phase, persona, prompt, cwd):
+def run_claude_streaming(phase, persona, prompt, cwd, env=None):
     cmd = [CLAUDE, "-p", "--model", MODEL, "--system-prompt", persona,
            "--permission-mode", "bypassPermissions",
            "--output-format", "stream-json", "--verbose",
            *[a for m in core.methods() for a in ("--add-dir", str(m["dir"]))],
            "--add-dir", str(ROOT / "skills"), "--add-dir", tempfile.gettempdir()]
     proc = subprocess.Popen(cmd, cwd=cwd, text=True, stdin=subprocess.PIPE,
-                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                            env=env or None)
     proc.stdin.write(prompt)
     proc.stdin.close()
     for line in proc.stdout:
@@ -378,7 +380,13 @@ def run_one():
             # else a scratch dir — transitional until data files live in Storage
             ws = ROOT / "clients" / client["slug"]
             cwd = str(ws if ws.is_dir() else out_dir)
-            rc = run_claude_streaming(phase, persona, prompt, cwd)
+            env = dict(os.environ)
+            creds = db.rpc("engine_credentials", {"p_client": client["id"]}) or {}
+            env.update({k: str(v) for k, v in creds.items()})
+            clis = sorted(ROOT.glob(".vendor/*/tools/clis"))
+            if clis:
+                env["PATH"] = ":".join(str(c) for c in clis) + ":" + env.get("PATH", "")
+            rc = run_claude_streaming(phase, persona, prompt, cwd, env)
 
         if rc == 0 and out_file.is_file():
             content = out_file.read_text()

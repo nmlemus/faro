@@ -6,6 +6,7 @@ import StartJob from "@/components/StartJob";
 import Results from "@/components/Results";
 import DangerDelete from "@/components/DangerDelete";
 import ClientSettings from "@/components/ClientSettings";
+import Connectors from "@/components/Connectors";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +60,15 @@ export default async function ClientPage({ params }: { params: Promise<{ slug: s
             </p>
           </div>
           {client.business && <p className="t-body text-ink-2 mt-3 max-w-[56ch]">{client.business}</p>}
-          {canEdit && <div className="mt-4"><ClientSettings client={client} /></div>}
+          {canEdit && (
+            <div className="mt-4 flex items-center gap-6">
+              <ClientSettings client={client} />
+              {owner && (
+                <Connectors clientId={client.id} tools={client.tools ?? {}}
+                  catalog={methodRow?.[0]?.manifest?.connectors ?? []} />
+              )}
+            </div>
+          )}
         </header>
 
         {!!metrics?.length && <Results rows={metrics} slug={slug} />}
