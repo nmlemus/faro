@@ -46,6 +46,7 @@ export default async function RunPage(
       decisions={decisions ?? []}
       owner={owner}
       staffView={staffView}
+      language={client.language}
     />
     </Shell>
   );

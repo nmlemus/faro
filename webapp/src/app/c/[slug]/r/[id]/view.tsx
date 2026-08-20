@@ -7,6 +7,8 @@ import remarkGfm from "remark-gfm";
 import ChartBlock from "@/components/ChartBlock";
 import DangerDelete from "@/components/DangerDelete";
 import { prepDoc } from "@/lib/md";
+import { workflowName, docName, docTitle } from "@/lib/names";
+import { tFor } from "@/lib/i18n";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Phase = {
@@ -66,6 +68,7 @@ const mdComponents = {
 export default function RunView(props: {
   owner?: boolean;
   staffView?: boolean;
+  language?: string | null;
   slug: string; clientName: string; workflow: string; runId: string;
   phases: Phase[]; artifacts: Artifact[]; initialEvents: Ev[]; decisions: Decision[];
 }) {
@@ -73,6 +76,8 @@ export default function RunView(props: {
   const supabase = useMemo(() => supabaseBrowser(), []);
   const [events, setEvents] = useState<Ev[]>(props.initialEvents);
   const [open, setOpen] = useState<string | null>(null);
+  const t = tFor(props.staffView ?? false, props.language);
+  const docRef = useRef<HTMLDivElement | null>(null);
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -83,6 +88,10 @@ export default function RunView(props: {
   const running = props.phases.some((p) => p.status === "running");
   const artifact = props.artifacts.find((a) => a.path === open);
   const gateArtifact = gate ? props.artifacts.find((a) => a.phase_id === gate.id) : null;
+
+  useEffect(() => {
+    if (open) docRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [open]);
 
   useEffect(() => {
     const ch = supabase
@@ -114,8 +123,8 @@ export default function RunView(props: {
     if (error) { setErr(error.message); return; }
     setFeedback("");
     setConfirmation(decision === "approved"
-      ? "Approved — signed and recorded under your name."
-      : "Changes requested — your feedback is folded into the redo, on the record.");
+      ? t("Approved — signed and recorded under your name.")
+      : t("Changes requested — your feedback is folded into the redo, on the record."));
     router.refresh();
   }
 
@@ -129,8 +138,9 @@ export default function RunView(props: {
             ← {props.clientName}
           </Link>
           <h1 className="t-display mt-2 font-[family-name:var(--font-spline-mono)] !text-[clamp(1.5rem,3.2vw,2.2rem)] !tracking-tight">
-            {props.workflow}
+            {workflowName(props.workflow)}
           </h1>
+          {props.staffView && <p className="t-mono text-ink-3 mt-0.5">{props.workflow}</p>}
           {props.staffView && (() => {
             const total = props.phases.reduce((s, p) => s + (Number(p.cost_usd) || 0), 0);
             return total > 0 ? (
@@ -153,30 +163,30 @@ export default function RunView(props: {
               <span className="text-[1.6rem] leading-none" style={{ color: "var(--gate)" }}>⏸</span>
               <div>
                 <div className="t-eyebrow" style={{ color: "var(--gate)" }}>
-                  {gate.gate_class ?? "craft"} gate · {gate.phase_id}
+                  {gate.gate_class ?? "craft"} {t("gate")} · {gate.phase_id}
                 </div>
-                <h2 className="t-h1 mt-0.5">This needs a human. That is you.</h2>
+                <h2 className="t-h1 mt-0.5">{t("This needs a human. That is you.")}</h2>
               </div>
             </div>
             <p className="t-body text-ink-2 max-w-[62ch]">{gate.gate_text}</p>
             <div className="flex flex-wrap gap-3">
-              <button onClick={() => decide("approved")} disabled={busy} className="btn btn-gate">Approve</button>
-              <button onClick={() => decide("rejected")} disabled={busy} className="btn btn-danger">Request changes</button>
+              <button onClick={() => decide("approved")} disabled={busy} className="btn btn-gate">{t("Approve")}</button>
+              <button onClick={() => decide("rejected")} disabled={busy} className="btn btn-danger">{t("Request changes")}</button>
               {gateArtifact && (
                 <button onClick={() => setOpen(gateArtifact.path)} className="btn btn-soft">
-                  Read {gateArtifact.path}
+                  {t("Read")} {props.staffView ? gateArtifact.path : docName(gateArtifact.path)}
                 </button>
               )}
             </div>
             <textarea value={feedback} onChange={(e) => setFeedback(e.target.value)}
-              placeholder="To request changes: what, concretely. Your words are folded into the redo."
+              placeholder={t("To request changes: what, concretely. Your words are folded into the redo.")}
               className="field min-h-20 resize-y" />
             {err && <p className="t-body text-danger">{err}</p>}
           </section>
         )}
 
         <section className="rise" style={d(2)}>
-          <div className="t-eyebrow mb-4">the pipeline</div>
+          <div className="t-eyebrow mb-4">{t("the pipeline")}</div>
           <div className="flex flex-col">
             {props.phases.map((p, i) => {
               const art = props.artifacts.find((a) => a.phase_id === p.id);
@@ -204,14 +214,15 @@ export default function RunView(props: {
                     {props.decisions.filter((dc) => dc.phase_id === p.id).map((dc, di) => (
                       <p key={di} className="t-mono mt-1"
                          style={{ color: dc.decision === "approved" ? "var(--ok)" : "var(--gate)" }}>
-                        {dc.decision === "approved" ? "✓ Approved" : "↺ Changes requested"} by {dc.decided_name ?? "staff"} · {fmtTime(dc.created_at)}
+                        {t(dc.decision === "approved" ? "✓ Approved" : "↺ Changes requested")} {t("by")} {dc.decided_name ?? "staff"} · {fmtTime(dc.created_at)}
                         {dc.feedback ? <span className="text-ink-3"> — “{dc.feedback}”</span> : null}
                       </p>
                     ))}
                     {art?.content && (
                       <button onClick={() => setOpen(open === art.path ? null : art.path)}
                         className="t-mono text-cobalt-ink hover:underline underline-offset-2 mt-1">
-                        {open === art.path ? "close document" : `read ${art.path}`}
+                        {open === art.path ? t("close document")
+                          : props.staffView ? `read ${art.path}` : `${t("read")} ${docName(art.path)}`}
                       </button>
                     )}
                     {p.error && <p className="t-mono text-danger mt-1">{p.error}</p>}
@@ -223,14 +234,17 @@ export default function RunView(props: {
         </section>
 
         {artifact?.content && (
-          <section className="card-flat p-10 rise" style={{ boxShadow: "var(--sh-3)", background: "var(--paper)" }}>
+          <section ref={docRef} className="card-flat p-10 rise scroll-mt-20" style={{ boxShadow: "var(--sh-3)", background: "var(--paper)" }}>
             <div className="flex items-center justify-between mb-6">
-              <span className="t-eyebrow">{artifact.path}</span>
+              <span className="flex items-baseline gap-3 min-w-0">
+                <span className="t-h2 truncate">{docTitle(artifact.path, artifact.content)}</span>
+                {props.staffView && <span className="t-eyebrow flex-none">{artifact.path}</span>}
+              </span>
               <div className="flex items-center gap-4">
                 <a href={`/c/${props.slug}/r/${props.runId}/export?file=${encodeURIComponent(artifact.path)}`}
                   target="_blank" rel="noopener"
                   className="t-mono text-cobalt-ink hover:underline underline-offset-2">
-                  export / PDF ↗
+                  {t("Export PDF ↗")}
                 </a>
                 <button onClick={() => setOpen(null)} className="t-mono text-ink-3 hover:text-ink">close ✕</button>
               </div>

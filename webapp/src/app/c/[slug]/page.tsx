@@ -7,6 +7,8 @@ import Results from "@/components/Results";
 import DangerDelete from "@/components/DangerDelete";
 import ClientSettings from "@/components/ClientSettings";
 import Connectors from "@/components/Connectors";
+import { workflowName } from "@/lib/names";
+import { tFor } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +27,7 @@ export default async function ClientPage({ params }: { params: Promise<{ slug: s
   const staff = (membership?.[0]?.role ?? "client_viewer") !== "client_viewer";
   const owner = membership?.[0]?.role === "owner";
   const canEdit = ["owner", "account_director"].includes(membership?.[0]?.role ?? "");
+  const t = tFor(staff, client.language);
 
   const { data: methodRow } = await supabase
     .from("method_versions").select("manifest").order("created_at", { ascending: false }).limit(1);
@@ -74,7 +77,7 @@ export default async function ClientPage({ params }: { params: Promise<{ slug: s
         {!!metrics?.length && <Results rows={metrics} slug={slug} />}
 
         <section className="flex flex-col gap-4 rise" style={d(1)}>
-          <div className="t-eyebrow">the work</div>
+          <div className="t-eyebrow">{t("the work")}</div>
           {(runs ?? []).map((r) => {
             const phases = [...(r.phases ?? [])].sort((a, b) => a.seq - b.seq);
             const job = r.jobs as unknown as { workflow_id: string; recurring: string | null };
@@ -83,14 +86,21 @@ export default async function ClientPage({ params }: { params: Promise<{ slug: s
             const headline = gate ? "awaiting_gate" : running ? "running"
               : r.status === "complete" ? "done" : r.status === "abandoned" ? "failed"
               : phases.some((p) => p.status === "failed") ? "failed" : "idle";
-            const label = { awaiting_gate: "waiting for you", running: "working", done: "complete",
-                            failed: "needs attention", idle: "queued" }[headline];
+            const label = t({ awaiting_gate: "waiting for you", running: "working", done: "complete",
+                              failed: "needs attention", idle: "queued" }[headline]!);
             return (
               <Link key={r.id} href={`/c/${slug}/r/${r.id}`} className="card p-5 flex flex-col gap-3.5">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-baseline gap-2.5 min-w-0">
-                    <h2 className="t-h2 font-[family-name:var(--font-spline-mono)]">{job?.workflow_id}</h2>
-                    {r.run_key !== "main" && <span className="t-mono text-ink-3">{r.run_key}</span>}
+                    <h2 className={staff ? "t-h2 font-[family-name:var(--font-spline-mono)]" : "t-h2"}>
+                      {staff ? job?.workflow_id : workflowName(job?.workflow_id ?? "")}
+                    </h2>
+                    {r.run_key !== "main" && (
+                      <span className="t-mono text-ink-3">
+                        {staff ? r.run_key
+                          : new Date(r.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                      </span>
+                    )}
                     {job?.recurring && <span className="chip idle">{job.recurring}</span>}
                   </div>
                   <span className={`chip ${headline === "awaiting_gate" ? "gate" : headline === "running" ? "run" : headline === "done" ? "done" : headline === "failed" ? "failed" : "idle"}`}>
@@ -106,7 +116,7 @@ export default async function ClientPage({ params }: { params: Promise<{ slug: s
                 </div>
                 {gate && (
                   <p className="t-body" style={{ color: "var(--gate)" }}>
-                    ⏸ <strong>{gate.phase_id}</strong> is waiting for a decision
+                    ⏸ <strong>{gate.phase_id}</strong> {" "}{t("is waiting for a decision")}
                     {gate.gate_class ? ` (${gate.gate_class})` : ""}.
                   </p>
                 )}

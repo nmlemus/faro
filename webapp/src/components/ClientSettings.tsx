@@ -6,13 +6,17 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 /* Inline account settings: the fields every phase reads. RLS enforces who can
    write (owner / account_director) — this form is only rendered for them. */
 
-const FIELDS: { key: string; label: string; hint: string; long?: boolean }[] = [
+const LANGS = ["English", "Spanish", "Portuguese"];
+const CADENCES = ["weekly", "2 posts per week", "biweekly", "4 weeks", "monthly"];
+
+const FIELDS: { key: string; label: string; hint: string; long?: boolean; options?: string[] }[] = [
   { key: "name", label: "name", hint: "how the account is called everywhere" },
   { key: "website", label: "website", hint: "the site audits and campaigns point at" },
-  { key: "language", label: "deliverable language", hint: "what the client reads — the system still works in English" },
+  { key: "language", label: "deliverable language", options: LANGS,
+    hint: "what the client reads — and the language of their portal" },
   { key: "business", label: "business", hint: "what they do, one line — every agent reads this first", long: true },
   { key: "icp", label: "ideal customer profile", hint: "who they sell to — targeting, tone and diagnosis all key off this", long: true },
-  { key: "cadence", label: "cadence", hint: "content rhythm, e.g. “4 weeks” or “2 posts per week”" },
+  { key: "cadence", label: "cadence", options: CADENCES, hint: "content rhythm for the content engine" },
 ];
 
 export default function ClientSettings({ client }: { client: Record<string, string> }) {
@@ -47,10 +51,16 @@ export default function ClientSettings({ client }: { client: Record<string, stri
         <span className="t-eyebrow">account settings</span>
         <button onClick={() => setOpen(false)} className="t-mono text-ink-3 hover:text-ink">close ✕</button>
       </div>
-      {FIELDS.map(({ key, label, hint, long }) => (
+      {FIELDS.map(({ key, label, hint, long, options }) => (
         <label key={key} className="flex flex-col gap-1.5">
           <span className="t-mono text-ink-2">{label}</span>
-          {long ? (
+          {options ? (
+            <select className="field" value={options.includes(f[key]) ? f[key] : ""}
+              onChange={(e) => setF({ ...f, [key]: e.target.value })}>
+              {!options.includes(f[key]) && <option value="">{f[key] || "choose…"}</option>}
+              {options.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          ) : long ? (
             <textarea className="field" rows={3} value={f[key]}
               onChange={(e) => setF({ ...f, [key]: e.target.value })} />
           ) : (
@@ -60,15 +70,15 @@ export default function ClientSettings({ client }: { client: Record<string, stri
           <span className="t-mono text-ink-3" style={{ fontSize: ".65rem" }}>{hint}</span>
         </label>
       ))}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 flex-wrap">
         <button onClick={save} disabled={busy} className="btn btn-ink">
           {busy ? "saving…" : "save"}
         </button>
+        <button onClick={() => setOpen(false)} disabled={busy}
+          className="t-mono text-ink-2 hover:text-ink">cancel</button>
+        <span className="t-body text-ink-2">Changes apply to the next run.</span>
         {err && <span className="t-mono" style={{ color: "var(--danger)" }}>{err}</span>}
       </div>
-      <p className="t-mono text-ink-3" style={{ fontSize: ".65rem" }}>
-        Changes apply to the NEXT run — work already delivered keeps the profile it was made with.
-      </p>
     </div>
   );
 }

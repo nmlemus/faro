@@ -76,6 +76,9 @@ export default function StartJob({ clientId, hasWebsite, workflows, activeIds }:
                 Your brief shapes every step. A job with no brief gets the AI&apos;s
                 assumptions — a job with yours gets yours. All fields optional, all valuable.
               </p>
+            <p className="t-mono text-ink-3">
+              {picked.phases} steps · {picked.gates} approval{picked.gates === 1 ? "" : "s"} of yours before anything ships.
+            </p>
             </div>
             <label className="flex flex-col gap-1.5">
               <span className="t-eyebrow">Objective — in your unit, not clicks</span>

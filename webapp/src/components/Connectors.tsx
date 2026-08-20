@@ -11,6 +11,22 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 
 export type Connector = { id: string; envs: string[]; envs_hint: string; doc: string | null };
 
+const humanTool = (id: string) =>
+  id.split("-").map((w) => w === "ga4" ? "GA4" : w === "ads" ? "Ads" : w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+
+const humanEnv = (env: string) => {
+  const tail = env.replace(/^[A-Z0-9]+_/, "");
+  const map: Record<string, string> = {
+    API_KEY: "API key", API_TOKEN: "API token", ACCESS_TOKEN: "Access token",
+    API_SECRET: "API secret", SECRET_KEY: "Secret key", CUSTOMER_ID: "Customer ID",
+    AD_ACCOUNT_ID: "Ad account ID", ADVERTISER_ID: "Advertiser ID",
+    DEVELOPER_TOKEN: "Developer token", CLIENT_ID: "Client ID",
+    CLIENT_SECRET: "Client secret", APP_ID: "App ID", SITE_ID: "Site ID",
+    WRITE_KEY: "Write key", LOGIN: "Login", PASSWORD: "Password", API_URL: "API URL",
+  };
+  return map[tail] ?? tail.replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
+};
+
 export default function Connectors({ clientId, catalog, tools }: {
   clientId: string; catalog: Connector[]; tools: Record<string, boolean>;
 }) {
@@ -85,7 +101,7 @@ export default function Connectors({ clientId, catalog, tools }: {
             {list.map((c) => (
               <button key={c.id} onClick={() => pick(c)}
                 className={`chip ${connected.has(c.id) ? "done" : "idle"} !cursor-pointer hover:!border-[color:var(--cobalt)]`}>
-                {connected.has(c.id) ? "● " : ""}{c.id}
+                {connected.has(c.id) ? "● " : ""}{humanTool(c.id)}
               </button>
             ))}
           </div>
@@ -100,7 +116,7 @@ export default function Connectors({ clientId, catalog, tools }: {
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <span className="t-h2 font-[family-name:var(--font-spline-mono)]">
-              {active.id}{connected.has(active.id) && <span className="chip done ml-3">connected</span>}
+              {humanTool(active.id)}{connected.has(active.id) && <span className="chip done ml-3">connected</span>}
             </span>
             <div className="flex items-center gap-3">
               {active.doc && (
@@ -121,13 +137,14 @@ export default function Connectors({ clientId, catalog, tools }: {
 
           {active.envs.map((e) => (
             <label key={e} className="flex flex-col gap-1.5">
-              <span className="t-mono text-ink-2">{e}</span>
+              <span className="t-body font-semibold">{humanEnv(e)}
+                <span className="t-mono text-ink-3 ml-2 font-normal">{e}</span></span>
               <input type="password" autoComplete="off" className="field" value={vals[e] ?? ""}
                 placeholder={connected.has(active.id) ? "unchanged — enter to replace" : ""}
                 onChange={(ev) => setVals({ ...vals, [e]: ev.target.value })} />
             </label>
           ))}
-          <p className="t-mono text-ink-3" style={{ fontSize: ".65rem" }}>{active.envs_hint}</p>
+          <p className="t-mono text-ink-3" style={{ fontSize: ".65rem" }}>{active.envs_hint.replace(/`/g, "")}</p>
 
           <div className="flex items-center gap-4">
             <button onClick={save} disabled={busy} className="btn btn-ink">

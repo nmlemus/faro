@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import Shell from "@/components/Shell";
 import NewClient from "@/components/NewClient";
+import DeskRows, { type DeskRow } from "@/components/DeskRows";
 
 export const dynamic = "force-dynamic";
 
@@ -104,6 +105,17 @@ export default async function Home() {
              cost: costByClient.get(c.id) ?? 0, last: lastByClient.get(c.id) };
   }).sort((a, b) => a.urgency - b.urgency || b.cost - a.cost);
 
+  const deskRows: DeskRow[] = rows.map(({ c, gateN, state, inFlight, nextSched, cost, last }) => ({
+    slug: c.slug, name: c.name, website: (c.website || "").replace(/^https?:\/\//, ""),
+    state,
+    stateLabel: state === "gate" ? `⏸ ${gateN} waiting on you` : state === "run" ? "● working"
+      : state === "fail" ? "✕ needs attention" : "quiet",
+    inFlight: inFlight.length ? inFlight.join(", ") : "—",
+    cost,
+    last: last ? `${last.path} · ${fmtDay(last.created_at)}` : "—",
+    sched: nextSched,
+  }));
+
   const d = (i: number) => ({ "--d": `${i * 90}ms` } as React.CSSProperties);
 
   return (
@@ -124,17 +136,18 @@ export default async function Home() {
               : "open gates"],
             [String((running ?? []).length), "running now"],
             [`$${orgCost.toFixed(2)}`, "ai cost · month to date"],
-          ].map(([v, label]) => (
-            <div key={label} className="card-flat p-4 flex flex-col justify-center gap-0.5">
+          ].map(([v, label], i) => (
+            <a key={label} href={i === 0 ? "#queue" : i === 1 ? "#running" : "#accounts"}
+              className="card-flat p-4 flex flex-col justify-center gap-0.5 hover:shadow-[var(--sh-2)] transition-shadow">
               <span className="tnum font-[family-name:var(--font-fraunces)] text-[1.5rem] leading-tight font-semibold">{v}</span>
               <span className="t-eyebrow">{label}</span>
-            </div>
+            </a>
           ))}
         </header>
 
         {/* decision queue */}
         {queue.length > 0 && (
-          <section className="flex flex-col gap-3 rise" style={d(1)}>
+          <section id="queue" className="flex flex-col gap-3 rise scroll-mt-20" style={d(1)}>
             <div className="flex items-baseline gap-3">
               <span className="t-eyebrow">needs a human</span>
               <span className="t-mono text-ink-3">money first, oldest first</span>
@@ -169,7 +182,7 @@ export default async function Home() {
 
         {/* running now */}
         {(running ?? []).length > 0 && (
-          <section className="flex flex-col gap-3 rise" style={d(2)}>
+          <section id="running" className="flex flex-col gap-3 rise scroll-mt-20" style={d(2)}>
             <span className="t-eyebrow">running now</span>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {(running ?? []).map((r) => {
@@ -190,7 +203,7 @@ export default async function Home() {
         )}
 
         {/* accounts, dense */}
-        <section className="flex flex-col gap-3 rise" style={d(3)}>
+        <section id="accounts" className="flex flex-col gap-3 rise scroll-mt-20" style={d(3)}>
           <div className="flex items-baseline justify-between gap-4">
             <div className="flex items-baseline gap-3">
               <span className="t-eyebrow">accounts</span>
@@ -205,24 +218,7 @@ export default async function Home() {
                 <th style={{ textAlign: "right" }}>ai cost mtd</th>
                 <th>last deliverable</th><th>scheduled</th>
               </tr></thead>
-              <tbody>
-                {rows.map(({ c, gateN, state, inFlight, nextSched, cost, last }) => (
-                  <tr key={c.slug} className="desk-row">
-                    <td>
-                      <Link href={`/c/${c.slug}`} className="t-h2 hover:text-cobalt-ink">{c.name}</Link>
-                      <span className="t-mono text-ink-3 ml-2">{(c.website || "").replace(/^https?:\/\//, "")}</span>
-                    </td>
-                    <td className="t-mono" style={{ color: state === "gate" ? "var(--gate)" : state === "run" ? "var(--cobalt-ink)" : state === "fail" ? "var(--danger)" : "var(--ink-3)" }}>
-                      {state === "gate" ? `⏸ ${gateN} waiting on you` : state === "run" ? "● working"
-                        : state === "fail" ? "✕ needs attention" : "quiet"}
-                    </td>
-                    <td className="t-mono text-ink-2">{inFlight.length ? inFlight.join(", ") : "—"}</td>
-                    <td className="t-mono tnum" style={{ textAlign: "right" }}>{cost ? `$${cost.toFixed(2)}` : "—"}</td>
-                    <td className="t-mono text-ink-3">{last ? `${last.path} · ${fmtDay(last.created_at)}` : "—"}</td>
-                    <td className="t-mono text-ink-3">{nextSched}</td>
-                  </tr>
-                ))}
-              </tbody>
+              <DeskRows rows={deskRows} />
             </table>
           </div>
           <p className="t-mono text-ink-3">

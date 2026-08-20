@@ -19,26 +19,25 @@ Status legend: [x] fixed · [ ] open
 ## P1 — before any real client gets credentials
 - [x] "account settings" / "connectors" look like metadata, not actions →
       now bordered pill buttons with icon and connection count
-- [ ] Connector fields labeled as env vars (GOOGLE_ADS_TOKEN), unrendered
-      backticks, no connected/not-connected badge in catalog, no icons →
-      human labels + status badges
-- [ ] Client-facing names are slugs ("growth-audit", "read 05-growth-audit.md",
-      run_key timestamps) → human titles, hide extensions/IDs from clients
-- [ ] Client portal chrome is 100% English for Spanish-speaking clients →
-      localize portal chrome by client language; language as select
-- [ ] Document opens below the fold with no scroll → auto-scroll or side panel
+- [x] Connectors: human tool & field labels (env var kept as hint),
+      backticks stripped, connected state on chips
+- [x] Client-facing names are slugs → clients see "Growth audit", "Leer:
+      Diagnosis", dates instead of run_keys; staff keeps technical slugs
+- [x] Client portal chrome localized by client language (es dict incl. the
+      gate approval flow); language is a select in settings
+- [x] Document auto-scrolls into view on open
 - [~] No forgot-password on login — support line added ('write to your account director'); email reset flow pending SMTP
-- [ ] Desk table rows glow on hover but only the name is a link → whole row link
-- [ ] Out-of-scope URL shows default Next 404 → branded 404 with way back
+- [x] Desk table rows fully clickable (keyboard too)
+- [x] Branded 404 with 'back to your account'
 
 ## P2 — polish
 - [ ] Progress bars: no labels/tooltips per segment
-- [ ] Desk KPIs not clickable; "IN FLIGHT"/"MTD" jargon; footnote too small
-- [ ] Start modal: no expectation line (steps, duration, approvals, est. cost)
-- [ ] Doc viewer: filename as header; "export / PDF ↗" reads as two actions;
-      "Save as PDF" opens print dialog
+- [x] Desk KPIs are anchor links to their sections (jargon labels kept for now)
+- [x] Start modal states steps + approvals before confirming
+- [x] Doc viewer: human title (deliverable's own H1) as header, filename
+      staff-only; single "Export PDF ↗"; print button says what it does
 - [ ] Deliverable meta line runs together ("Date: … Prepared for: …")
-- [ ] Settings: language/cadence free-text → selects; no cancel; tiny notice
+- [x] Settings: language/cadence selects, cancel button, visible notice
 - [x] Login panel copy — now "audits, media plans, weekly optimization — run
       by AI, signed by people"
 
