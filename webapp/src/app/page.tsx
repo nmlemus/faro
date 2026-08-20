@@ -123,7 +123,7 @@ export default async function Home() {
   const d = (i: number) => ({ "--d": `${i * 90}ms` } as React.CSSProperties);
 
   return (
-    <Shell working={(running ?? []).length > 0} lang={lang}>
+    <Shell working={(running ?? []).length > 0} lang={lang} staff>
       <main className="max-w-[1280px] mx-auto px-6 py-10 flex flex-col gap-10">
 
         {/* org strip */}

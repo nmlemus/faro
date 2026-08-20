@@ -63,7 +63,7 @@ export default async function ClientPage({ params }: { params: Promise<{ slug: s
   const d = (i: number) => ({ "--d": `${i * 90}ms` } as React.CSSProperties);
 
   return (
-    <Shell working={anyRunning} lang={lang}>
+    <Shell working={anyRunning} lang={lang} staff={staff}>
       <main className="max-w-6xl mx-auto px-6 py-12 flex flex-col gap-12">
         <header className="rise" style={d(0)}>
           {staff && <Link href="/" className="t-eyebrow hover:text-ink transition-colors">{t("← all accounts")}</Link>}

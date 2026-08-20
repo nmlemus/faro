@@ -36,7 +36,7 @@ export default async function RunPage(
 
   const running = (phases ?? []).some((p) => p.status === "running");
   return (
-    <Shell working={running} lang={lang}>
+    <Shell working={running} lang={lang} staff={staffView}>
     <RunView
       slug={slug}
       clientName={client.name}
