@@ -13,6 +13,7 @@ type Phase = {
   id: string; phase_id: string; seq: number; agent: string; produces: string;
   status: string; gate_class: string | null; gate_text: string | null; error: string | null;
   started_at: string | null; finished_at: string | null;
+  cost_usd: number | string | null;
 };
 type Artifact = { id: string; path: string; content: string | null; phase_id: string | null };
 type Ev = { id: number; type: string; payload: Record<string, unknown>; created_at: string };
@@ -129,6 +130,12 @@ export default function RunView(props: {
           <h1 className="t-display mt-2 font-[family-name:var(--font-spline-mono)] !text-[clamp(1.5rem,3.2vw,2.2rem)] !tracking-tight">
             {props.workflow}
           </h1>
+          {(() => {
+            const total = props.phases.reduce((s, p) => s + (Number(p.cost_usd) || 0), 0);
+            return total > 0 ? (
+              <p className="t-mono text-ink-3 mt-1">run cost ${total.toFixed(2)}</p>
+            ) : null;
+          })()}
           {props.owner && (
             <div className="mt-3">
               <DangerDelete label="delete this run" confirmLabel="Run, documents and results go. No undo."
@@ -196,7 +203,7 @@ export default function RunView(props: {
                       <span className="t-mono text-ink-3">{p.agent} · AI</span>
                       {p.status === "running" && <span className="t-mono text-cobalt-ink pulse">working since {fmtTime(p.started_at)}</span>}
                       {p.status === "done" && p.finished_at && (
-                        <span className="t-mono text-ink-3">{fmtTime(p.finished_at)}</span>
+                        <span className="t-mono text-ink-3">{fmtTime(p.finished_at)}{p.cost_usd != null ? ` · $${Number(p.cost_usd).toFixed(2)}` : ""}</span>
                       )}
                     </div>
                     {props.decisions.filter((dc) => dc.phase_id === p.id).map((dc, di) => (

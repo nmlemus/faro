@@ -224,7 +224,24 @@ def run_claude_streaming(phase, persona, prompt, cwd):
                     txt = " ".join(b["text"].split())
                     emit(phase, "text", {"line": txt[:200]})
         elif t == "result":
-            emit(phase, "done", {"duration_ms": ev.get("duration_ms")})
+            u = ev.get("usage") or {}
+            stats = {
+                "cost_usd": ev.get("total_cost_usd"),
+                "tokens_in": (u.get("input_tokens") or 0)
+                             + (u.get("cache_read_input_tokens") or 0)
+                             + (u.get("cache_creation_input_tokens") or 0),
+                "tokens_out": u.get("output_tokens"),
+            }
+            if stats["cost_usd"] is not None:
+                db.update("phases", f"id=eq.{phase['id']}", stats)
+            cost = stats["cost_usd"]
+            emit(phase, "done", {
+                "duration_ms": ev.get("duration_ms"),
+                "line": "session finished"
+                        + (f" · ${cost:.2f} · {stats['tokens_out'] or 0:,} tokens out"
+                           if cost is not None else ""),
+                **stats,
+            })
     return proc.wait()
 
 
